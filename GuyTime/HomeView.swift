@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct HomeView: View {
     @EnvironmentObject private var store: FeedingStore
@@ -7,15 +8,16 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 22) {
+                VStack(spacing: 20) {
                     TimelineView(.periodic(from: .now, by: 1)) { context in
-                        VStack(spacing: 6) {
+                        VStack(spacing: 7) {
                             Text("עברו")
                                 .font(.headline)
                                 .foregroundStyle(.secondary)
                             Text(elapsedText(at: context.date))
-                                .font(.system(size: 46, weight: .bold, design: .rounded))
+                                .font(.system(size: 48, weight: .bold, design: .rounded))
                                 .monospacedDigit()
+                                .minimumScaleFactor(0.75)
                             Text("מאז ההאכלה האחרונה")
                                 .foregroundStyle(.secondary)
                         }
@@ -24,12 +26,13 @@ struct HomeView: View {
                         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 28))
                     }
 
-                    HStack(spacing: 16) {
+                    HStack(spacing: 14) {
                         NursingButton(side: .right, color: .pink)
                         NursingButton(side: .left, color: .green)
                     }
 
                     Button {
+                        haptic()
                         showBottle = true
                     } label: {
                         Label("בקבוק", systemImage: "waterbottle.fill")
@@ -41,12 +44,12 @@ struct HomeView: View {
                     .tint(.blue)
 
                     Button {
-                        store.toggleVitaminD()
+                        haptic()
+                        withAnimation(.snappy) { store.toggleVitaminD() }
                     } label: {
                         HStack {
                             Image(systemName: store.vitaminDTakenToday ? "checkmark.circle.fill" : "drop.fill")
-                            Text("ויטמין D")
-                                .fontWeight(.bold)
+                            Text("ויטמין D").fontWeight(.bold)
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 18)
@@ -68,6 +71,10 @@ struct HomeView: View {
         let minutes = (interval % 3600) / 60
         return String(format: "%02d:%02d", hours, minutes)
     }
+
+    private func haptic() {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
 }
 
 private struct NursingButton: View {
@@ -75,15 +82,16 @@ private struct NursingButton: View {
     let side: FeedingSide
     let color: Color
 
-    var isActive: Bool { store.activeNursing?.side == side }
-    var isLast: Bool { store.lastNursingSide == side }
+    private var isActive: Bool { store.activeNursing?.side == side }
+    private var isLast: Bool { store.lastNursingSide == side }
 
     var body: some View {
         Button {
-            store.toggleNursing(side: side)
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            withAnimation(.snappy) { store.toggleNursing(side: side) }
         } label: {
             VStack(spacing: 10) {
-                Image(systemName: isActive ? "pause.fill" : "heart.fill")
+                Image(systemName: isActive ? "stop.fill" : "heart.fill")
                     .font(.system(size: 34))
                 Text(side.rawValue)
                     .font(.title3.bold())
@@ -92,17 +100,22 @@ private struct NursingButton: View {
                         Text(durationText(now: context.date))
                             .font(.headline.monospacedDigit())
                     }
+                } else {
+                    Text(" ").font(.headline)
                 }
             }
-            .frame(maxWidth: .infinity, minHeight: 132)
-            .background(color.opacity(isActive ? 0.95 : 0.17), in: RoundedRectangle(cornerRadius: 26))
+            .frame(maxWidth: .infinity, minHeight: 138)
+            .background(color.opacity(isActive ? 0.95 : 0.16), in: RoundedRectangle(cornerRadius: 26))
             .foregroundStyle(isActive ? .white : color)
             .overlay {
                 RoundedRectangle(cornerRadius: 26)
-                    .stroke(isLast ? color : .clear, lineWidth: 4)
+                    .stroke(isLast && !isActive ? color : .clear, lineWidth: 4)
             }
+            .shadow(color: isActive ? color.opacity(0.22) : .clear, radius: 12, y: 5)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("הנקה צד \(side.rawValue)")
+        .accessibilityHint(isActive ? "לחיצה תסיים ותשמור את ההנקה" : "לחיצה תתחיל טיימר")
     }
 
     private func durationText(now: Date) -> String {
@@ -118,6 +131,8 @@ private struct BottleEntryView: View {
     @State private var type: BottleType = .expressed
     @State private var amount = ""
 
+    private let quickAmounts = [60, 90, 120, 150]
+
     var body: some View {
         NavigationStack {
             Form {
@@ -126,15 +141,25 @@ private struct BottleEntryView: View {
                 }
                 .pickerStyle(.segmented)
 
-                TextField("כמות במ״ל", text: $amount)
-                    .keyboardType(.numberPad)
-                    .font(.title2)
+                Section("כמות") {
+                    TextField("מ״ל", text: $amount)
+                        .keyboardType(.numberPad)
+                        .font(.title2)
+
+                    HStack {
+                        ForEach(quickAmounts, id: \.self) { ml in
+                            Button("\(ml)") { amount = "\(ml)" }
+                                .buttonStyle(.bordered)
+                        }
+                    }
+                }
             }
             .navigationTitle("בקבוק")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("ביטול") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("שמירה") {
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                         store.addBottle(type: type, milliliters: Int(amount) ?? 0)
                         dismiss()
                     }

@@ -10,16 +10,18 @@ final class FeedingStore: ObservableObject {
 
     init() { load() }
 
+    var sortedEntries: [FeedingEntry] { entries.sorted { $0.date > $1.date } }
     var lastFeedingDate: Date? { entries.map(\.date).max() }
 
+    var todayEntries: [FeedingEntry] {
+        entries.filter { Calendar.current.isDateInToday($0.date) }
+    }
+
     var lastNursingSide: FeedingSide? {
-        entries
-            .sorted { $0.date > $1.date }
-            .compactMap { entry -> FeedingSide? in
-                if case let .nursing(side, _) = entry.kind { return side }
-                return nil
-            }
-            .first
+        sortedEntries.compactMap { entry -> FeedingSide? in
+            if case let .nursing(side, _) = entry.kind { return side }
+            return nil
+        }.first
     }
 
     var vitaminDTakenToday: Bool {
@@ -27,25 +29,26 @@ final class FeedingStore: ObservableObject {
         return Calendar.current.isDateInToday(vitaminDDate)
     }
 
-    func toggleNursing(side: FeedingSide) {
+    func toggleNursing(side: FeedingSide, now: Date = Date()) {
         if let active = activeNursing {
-            if active.side == side {
-                let duration = max(1, Date().timeIntervalSince(active.startedAt))
-                entries.append(FeedingEntry(date: Date(), kind: .nursing(side: side, duration: duration)))
-                activeNursing = nil
-            } else {
-                let duration = max(1, Date().timeIntervalSince(active.startedAt))
-                entries.append(FeedingEntry(date: Date(), kind: .nursing(side: active.side, duration: duration)))
-                activeNursing = ActiveNursing(side: side, startedAt: Date())
-            }
+            let duration = max(1, now.timeIntervalSince(active.startedAt))
+            entries.append(FeedingEntry(date: now, kind: .nursing(side: active.side, duration: duration)))
+            activeNursing = active.side == side ? nil : ActiveNursing(side: side, startedAt: now)
         } else {
-            activeNursing = ActiveNursing(side: side, startedAt: Date())
+            activeNursing = ActiveNursing(side: side, startedAt: now)
         }
     }
 
-    func addBottle(type: BottleType, milliliters: Int) {
+    func stopActiveNursing(now: Date = Date()) {
+        guard let active = activeNursing else { return }
+        let duration = max(1, now.timeIntervalSince(active.startedAt))
+        entries.append(FeedingEntry(date: now, kind: .nursing(side: active.side, duration: duration)))
+        activeNursing = nil
+    }
+
+    func addBottle(type: BottleType, milliliters: Int, date: Date = Date()) {
         guard milliliters > 0 else { return }
-        entries.append(FeedingEntry(date: Date(), kind: .bottle(type: type, milliliters: milliliters)))
+        entries.append(FeedingEntry(date: date, kind: .bottle(type: type, milliliters: milliliters)))
     }
 
     func toggleVitaminD() {
@@ -69,16 +72,23 @@ final class FeedingStore: ObservableObject {
 
     private func save() {
         let state = PersistedState(entries: entries, activeNursing: activeNursing, vitaminDDate: vitaminDDate)
-        if let data = try? JSONEncoder().encode(state) {
+        do {
+            let data = try JSONEncoder().encode(state)
             UserDefaults.standard.set(data, forKey: key)
+        } catch {
+            assertionFailure("Guy Time save failed: \(error)")
         }
     }
 
     private func load() {
-        guard let data = UserDefaults.standard.data(forKey: key),
-              let state = try? JSONDecoder().decode(PersistedState.self, from: data) else { return }
-        entries = state.entries
-        activeNursing = state.activeNursing
-        vitaminDDate = state.vitaminDDate
+        guard let data = UserDefaults.standard.data(forKey: key) else { return }
+        do {
+            let state = try JSONDecoder().decode(PersistedState.self, from: data)
+            entries = state.entries
+            activeNursing = state.activeNursing
+            vitaminDDate = state.vitaminDDate
+        } catch {
+            assertionFailure("Guy Time load failed: \(error)")
+        }
     }
 }
