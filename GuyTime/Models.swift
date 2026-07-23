@@ -23,15 +23,9 @@ enum FeedingKind: Codable, Equatable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         switch try c.decode(KindType.self, forKey: .type) {
         case .nursing:
-            self = .nursing(
-                side: try c.decode(FeedingSide.self, forKey: .side),
-                duration: try c.decode(TimeInterval.self, forKey: .duration)
-            )
+            self = .nursing(side: try c.decode(FeedingSide.self, forKey: .side), duration: try c.decode(TimeInterval.self, forKey: .duration))
         case .bottle:
-            self = .bottle(
-                type: try c.decode(BottleType.self, forKey: .bottleType),
-                milliliters: try c.decode(Int.self, forKey: .milliliters)
-            )
+            self = .bottle(type: try c.decode(BottleType.self, forKey: .bottleType), milliliters: try c.decode(Int.self, forKey: .milliliters))
         }
     }
 
@@ -51,12 +45,42 @@ enum FeedingKind: Codable, Equatable {
 }
 
 struct FeedingEntry: Identifiable, Codable, Equatable {
-    var id = UUID()
+    var id: UUID
     var date: Date
     var kind: FeedingKind
+    var updatedAt: Date
+    var isDeleted: Bool
+
+    init(id: UUID = UUID(), date: Date, kind: FeedingKind, updatedAt: Date = Date(), isDeleted: Bool = false) {
+        self.id = id
+        self.date = date
+        self.kind = kind
+        self.updatedAt = updatedAt
+        self.isDeleted = isDeleted
+    }
+
+    private enum CodingKeys: String, CodingKey { case id, date, kind, updatedAt, isDeleted }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        date = try c.decode(Date.self, forKey: .date)
+        kind = try c.decode(FeedingKind.self, forKey: .kind)
+        updatedAt = try c.decodeIfPresent(Date.self, forKey: .updatedAt) ?? date
+        isDeleted = try c.decodeIfPresent(Bool.self, forKey: .isDeleted) ?? false
+    }
 }
 
 struct ActiveNursing: Codable, Equatable {
     var side: FeedingSide
     var startedAt: Date
+}
+
+struct WidgetSnapshot: Codable {
+    var lastFeedingDate: Date?
+    var lastFeedingTitle: String
+    var lastNursingSide: String?
+    var activeSide: String?
+    var activeStartedAt: Date?
+    var updatedAt: Date
 }

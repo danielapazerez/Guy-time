@@ -7,7 +7,7 @@ struct HistoryView: View {
     var body: some View {
         NavigationStack {
             List {
-                ForEach(store.entries.sorted { $0.date > $1.date }) { entry in
+                ForEach(store.sortedEntries) { entry in
                     Button { editing = entry } label: {
                         HStack {
                             VStack(alignment: .leading, spacing: 5) {
@@ -29,7 +29,7 @@ struct HistoryView: View {
                 }
             }
             .overlay {
-                if store.entries.isEmpty {
+                if store.visibleEntries.isEmpty {
                     ContentUnavailableView("עדיין אין האכלות", systemImage: "heart")
                 }
             }
