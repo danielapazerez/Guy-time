@@ -5,6 +5,25 @@ let chartDays=7;
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 
 function initialData(){return {events:[],active:null,lastSide:null,dualMode:false}}
+function exportBackup(){
+  haptic(12);
+  const payload={app:'Guy Time',version:'1.7',exportedAt:new Date().toISOString(),data};
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=`guy-time-backup-${todayKey()}.json`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+  toast('קובץ הגיבוי נוצר');
+}
+async function importBackup(file){
+  if(!file)return;
+  try{
+    const parsed=JSON.parse(await file.text());
+    const incoming=parsed.data||parsed;
+    if(!incoming||!Array.isArray(incoming.events))throw new Error('invalid');
+    if(!confirm('להחליף את הנתונים במכשיר בנתוני הגיבוי?'))return;
+    data={...initialData(),...incoming};save();toast('הגיבוי שוחזר');
+  }catch{toast('קובץ הגיבוי אינו תקין')}
+}
+
 function load(){
   try{
     const current=JSON.parse(localStorage.getItem(STORAGE));
@@ -41,19 +60,31 @@ function startStop(side){
   save();
 }
 
+function setTimerText(value){
+  const el=$('#sinceLast');
+  if(el.textContent===value)return;
+  el.classList.add('tick-fade');
+  requestAnimationFrame(()=>{
+    el.textContent=value;
+    requestAnimationFrame(()=>el.classList.remove('tick-fade'));
+  });
+}
+
 function tick(){
   if(data.active){
-    $('#sinceLast').textContent=data.active.pausedSince==null?'--:--:--':fmtDuration(data.active.pausedSince);
+    setTimerText(fmtDuration((Date.now()-data.active.start)/1000));
     $('.hero-card').classList.add('paused');
-    $('.sub').textContent='השעון נעצר בזמן ההנקה';
+    $('.sub').textContent=data.active.side==='both'?'משך השאיבה':'משך ההנקה';
+    $('#timerState').textContent=data.active.side==='both'?'דו״צ פעיל':data.active.side==='right'?'ימין פעיל':'שמאל פעיל';
     $('#activeTimer').classList.remove('hidden');
-    const label=data.active.side==='both'?'דו״צ':data.active.side==='right'?'ימין':'שמאל';
-    $('#activeTimer').textContent=`${label} · ${fmtDuration((Date.now()-data.active.start)/1000)}`;
+    const paused=data.active.pausedSince==null?'לא הייתה האכלה קודמת':`השעון מאז ההאכלה נעצר ב־${fmtDuration(data.active.pausedSince)}`;
+    $('#activeTimer').textContent=paused;
   }else{
     const elapsed=secondsSinceLastFeed();
-    $('#sinceLast').textContent=elapsed==null?'--:--:--':fmtDuration(elapsed);
+    setTimerText(elapsed==null?'--:--:--':fmtDuration(elapsed));
     $('.hero-card').classList.remove('paused');
     $('.sub').textContent='מאז ההאכלה האחרונה';
+    $('#timerState').textContent=elapsed==null?'מוכנים להאכלה הראשונה':'מוכן להאכלה הבאה';
     $('#activeTimer').classList.add('hidden');
   }
 }
@@ -79,8 +110,25 @@ function render(){
 function sideLabel(side){return side==='both'?'דו״צ':side==='right'?'ימין':'שמאל'}
 function eventTitle(e){if(e.type==='nursing')return e.side==='both'?'שאיבה דו״צ':`הנקה ${sideLabel(e.side)}`;if(e.type==='bottle')return `בקבוק · ${e.milk}`;return 'ויטמין D'}
 function eventDetail(e){const d=new Date(e.start);const t=d.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});if(e.type==='nursing')return `${t} · ${Math.max(1,Math.round((e.duration||0)/60))} דקות`;if(e.type==='bottle')return `${t} · ${e.ml} מ״ל`;return `${t} · ניתן`}
-function renderHistory(){const list=$('#historyList');const ev=[...data.events].sort((a,b)=>b.start-a.start);if(!ev.length){list.innerHTML='<div class="empty">עדיין אין אירועים<br>ההאכלה הראשונה תופיע כאן 💗</div>';return}list.innerHTML=ev.map(e=>`<article class="event"><div class="event-icon">${e.type==='nursing'?'🤱':e.type==='bottle'?'🍼':'☀️'}</div><div><h4>${eventTitle(e)}</h4><p>${new Date(e.start).toLocaleDateString('he-IL')} · ${eventDetail(e)}</p></div><div class="event-actions"><button data-edit="${e.id}" aria-label="עריכה">✎</button><button data-delete="${e.id}" aria-label="מחיקה">⌫</button></div></article>`).join('');
-  $$('[data-delete]').forEach(b=>b.onclick=()=>{haptic(12);if(confirm('למחוק את האירוע?')){data.events=data.events.filter(e=>e.id!==b.dataset.delete);save()}});$$('[data-edit]').forEach(b=>b.onclick=()=>{haptic(12);openEdit(b.dataset.edit)});
+function renderHistory(){
+  const list=$('#historyList');
+  const ev=[...data.events].sort((a,b)=>b.start-a.start);
+  if(!ev.length){list.innerHTML='<div class="empty">עדיין אין אירועים<br>ההאכלה הראשונה תופיע כאן 💗</div>';return}
+  const groups=new Map();
+  ev.forEach(e=>{
+    const key=todayKey(new Date(e.start));
+    if(!groups.has(key))groups.set(key,[]);
+    groups.get(key).push(e);
+  });
+  const today=todayKey(),y=new Date();y.setDate(y.getDate()-1);const yesterday=todayKey(y);
+  const dayTitle=key=>key===today?'היום':key===yesterday?'אתמול':new Date(key+'T12:00:00').toLocaleDateString('he-IL',{weekday:'long',day:'numeric',month:'long'});
+  list.innerHTML=[...groups].map(([key,items])=>`<section class="day-group"><h3 class="day-heading">${dayTitle(key)}</h3><div class="timeline">${items.map(e=>{
+    const time=new Date(e.start).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
+    const detail=e.type==='nursing'?`${Math.max(1,Math.round((e.duration||0)/60))} דקות`:e.type==='bottle'?`${e.ml} מ״ל · ${e.milk}`:'ניתן';
+    return `<article class="event"><div class="event-time">${time}</div><div class="event-icon">${e.type==='nursing'?'🤱':e.type==='bottle'?'🍼':'☀️'}</div><div><h4>${eventTitle(e)}</h4><p>${detail}</p></div><div class="event-actions"><button data-edit="${e.id}" aria-label="עריכה">✎</button><button data-delete="${e.id}" aria-label="מחיקה">⌫</button></div></article>`
+  }).join('')}</div></section>`).join('');
+  $$('[data-delete]').forEach(b=>b.onclick=()=>{haptic(12);if(confirm('למחוק את האירוע?')){data.events=data.events.filter(e=>e.id!==b.dataset.delete);save()}});
+  $$('[data-edit]').forEach(b=>b.onclick=()=>{haptic(12);openEdit(b.dataset.edit)});
 }
 function filtered(days){if(!days)return data.events;const cutoff=Date.now()-days*86400000;return data.events.filter(e=>e.start>=cutoff)}
 function renderStats(){const ev=filtered(chartDays),nur=ev.filter(e=>e.type==='nursing'),bot=ev.filter(e=>e.type==='bottle');$('#statNursing').textContent=nur.length;$('#statMinutes').textContent=Math.round(nur.reduce((a,e)=>a+(e.duration||0),0)/60);$('#statBottles').textContent=bot.length;$('#statMl').textContent=bot.reduce((a,e)=>a+(+e.ml||0),0);drawFeeds(ev);drawSides(nur)}
@@ -98,6 +146,10 @@ $('#minus').onclick=()=>{haptic(10);$('#amount').value=Math.max(0,+$('#amount').
 $('#bottleForm').addEventListener('submit',e=>{e.preventDefault();const ml=+$('#amount').value;if(ml<=0)return toast('יש להזין כמות');const now=Date.now();addEvent({type:'bottle',milk:$('input[name=milk]:checked').value,ml,start:now,end:now});save();$('#bottleDialog').close();haptic();toast('הבקבוק נשמר')});
 $$('.tab').forEach(t=>t.onclick=()=>{haptic(8);$$('.tab,.page').forEach(x=>x.classList.remove('active'));t.classList.add('active');$('#'+t.dataset.page).classList.add('active');render()});$$('.range').forEach(r=>r.onclick=()=>{haptic(8);$$('.range').forEach(x=>x.classList.remove('active'));r.classList.add('active');chartDays=+r.dataset.days;renderStats()});
 $('#clearAll').onclick=()=>{haptic(15);if(confirm('למחוק את כל ההיסטוריה? לא ניתן לבטל.')){data=initialData();save()}};
+$('#exportBtn').onclick=exportBackup;
+$('#importFile').onchange=e=>{importBackup(e.target.files?.[0]);e.target.value=''};
+$('#createFamilyBtn').onclick=()=>{haptic(10);toast('חיבור הענן יופעל לאחר יצירת חשבון Supabase')};
+$('#joinFamilyBtn').onclick=()=>{haptic(10);toast('חיבור הענן יופעל לאחר יצירת חשבון Supabase')};
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;$('#installBtn').classList.remove('hidden')});$('#installBtn').onclick=async()=>{haptic(10);if(deferredPrompt){deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null;$('#installBtn').classList.add('hidden')}else toast('ב־Safari: שיתוף ← הוספה למסך הבית')};
 if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js'));
 window.addEventListener('resize',()=>renderStats());setInterval(tick,1000);setTimeout(()=>{$('#splash').style.opacity='0';setTimeout(()=>{$('#splash').remove();$('#app').classList.remove('hidden');render()},400)},900);

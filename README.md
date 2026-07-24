@@ -1,43 +1,14 @@
-# Guy Time PWA 1.2
+# Guy Time PWA 1.7
 
-אפליקציית Web מתקדמת למעקב אחר האכלה של גיא.
+Local-first family foundation.
 
-## מה כלול
-- התקנה למסך הבית באייפון עם אייקון ורוד מותאם.
-- עבודה אופליין לאחר הטעינה הראשונה.
-- טיימר הנקה לימין ולשמאל.
-- הדגשת צד ההנקה האחרון.
-- בקבוק: חלב אם שאוב / תמ״ל וכמות במ״ל.
-- ויטמין D יומי.
-- היסטוריה, עריכה ומחיקה.
-- סטטיסטיקה וגרפים.
-- שמירה מקומית במכשיר באמצעות Local Storage.
-- תמיכה בעברית, RTL ומצב כהה.
+## Included
+- All 1.6 feeding, bottle, vitamin D, history and statistics features.
+- New Family screen showing local-only status.
+- Local JSON backup export and restore.
+- Privacy explanation.
+- Cloud create/join controls prepared for Supabase connection.
+- Offline PWA remains fully functional without an account.
 
-## העלאה ל-GitHub Pages
-1. העתיקו את כל הקבצים לתיקיית המאגר `Guy-time`.
-2. בצעו Commit ו-Push דרך GitHub Desktop.
-3. ב-GitHub פתחו Settings → Pages.
-4. תחת Build and deployment בחרו `Deploy from a branch`.
-5. Branch: `main`, תיקייה: `/ (root)`, ולחצו Save.
-6. לאחר דקה-שתיים יופיע קישור לאתר.
-
-## התקנה באייפון
-1. פתחו את קישור GitHub Pages ב-Safari.
-2. לחצו על שיתוף.
-3. בחרו "הוספה למסך הבית".
-4. אשרו את השם Guy Time.
-
-## חשוב
-הנתונים בגרסה זו נשמרים מקומית באותו מכשיר בלבד. סנכרון בין שני מכשירים וגיבוי בענן יתווספו בגרסה הבאה באמצעות שירות Backend מאובטח.
-
-
-## תיקון בגרסה 1.2
-- מיקום כפתורי ההנקה תוקן: שמאל ירוק בצד שמאל, ימין ורוד בצד ימין.
-
-## Version 1.3 — Sprint 1
-- Added gentle haptic feedback on supported devices.
-- Added dual-side pumping mode (דו״צ).
-- The “time since last feeding” clock pauses when nursing starts and resets only when nursing ends.
-- Dual-side sessions highlight both buttons and are stored as one event.
-- Improved bottom-sheet centering and interaction polish.
+## Not yet active
+Cloud sharing is not active until a Supabase project URL and anon key are supplied and authentication/database policies are configured.

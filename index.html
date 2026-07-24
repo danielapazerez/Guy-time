@@ -22,34 +22,35 @@
   <main id="app" class="app hidden">
     <header class="topbar">
       <div class="brand"><img src="icons/icon-192.png" alt=""><span>Guy Time</span></div>
-      <button id="installBtn" class="icon-btn hidden" aria-label="התקנה">↗︎</button>
+      <div class="top-actions"><span id="syncBadge" class="sync-badge local">מקומי</span><button id="installBtn" class="icon-btn hidden" aria-label="התקנה">↗︎</button></div>
     </header>
 
     <section id="home" class="page active">
       <article class="hero-card">
-        <p class="eyebrow">עברו</p>
         <div id="sinceLast" class="since">--:--:--</div>
         <p class="sub">מאז ההאכלה האחרונה</p>
+        <div id="timerState" class="timer-state">מוכן להאכלה הבאה</div>
       </article>
 
-      <div class="dual-control" role="group" aria-label="מצב שאיבה דו צדדית">
-        <span>שאיבה דו״צ</span>
-        <button id="dualToggle" class="switch" type="button" role="switch" aria-checked="false"><span></span></button>
-      </div>
+      <button id="dualToggle" class="dual-control" type="button" role="switch" aria-checked="false">
+        <span class="dual-icon">⇆</span>
+        <span class="dual-copy"><strong>שאיבה דו״צ</strong><small>הפעלת שני הצדדים יחד</small></span>
+        <span class="switch-dot" aria-hidden="true"></span>
+      </button>
 
       <section class="feeding-grid">
         <button class="feed-btn left" data-side="left">
-          <span class="feed-icon">🤱</span><strong>שמאל</strong><small>לחיצה להתחלה</small>
+          <span class="feed-icon" aria-hidden="true">●</span><strong>שמאל</strong><small>לחיצה להתחלה</small>
         </button>
         <button class="feed-btn right" data-side="right">
-          <span class="feed-icon">🤱</span><strong>ימין</strong><small>לחיצה להתחלה</small>
+          <span class="feed-icon" aria-hidden="true">●</span><strong>ימין</strong><small>לחיצה להתחלה</small>
         </button>
       </section>
       <div id="activeTimer" class="active-timer hidden"></div>
 
       <section class="quick-grid">
-        <button id="bottleBtn" class="quick-card blue"><span>🍼</span><strong>בקבוק</strong></button>
-        <button id="vitaminBtn" class="quick-card yellow"><span>☀️</span><strong>ויטמין D</strong><small id="vitaminState">טרם ניתן היום</small></button>
+        <button id="bottleBtn" class="quick-card blue"><span class="quick-icon">🍼</span><strong>בקבוק</strong></button>
+        <button id="vitaminBtn" class="quick-card yellow"><span class="quick-icon">☀️</span><strong>ויטמין D</strong><small id="vitaminState">טרם ניתן היום</small></button>
       </section>
 
       <section class="summary-card">
@@ -64,6 +65,24 @@
       <div id="historyList" class="history-list"></div>
     </section>
 
+    <section id="family" class="page">
+      <div class="page-title"><h2>שיתוף משפחתי</h2></div>
+      <article class="family-status-card">
+        <div class="status-mark">⌂</div>
+        <div><h3>מצב מקומי</h3><p>הנתונים נשמרים רק במכשיר הזה. האפליקציה ממשיכה לעבוד גם בלי חשבון ובלי אינטרנט.</p></div>
+      </article>
+      <section class="family-actions">
+        <button id="createFamilyBtn" class="family-action primary-family"><span>＋</span><div><strong>יצירת משפחה</strong><small>יופעל לאחר חיבור Supabase</small></div></button>
+        <button id="joinFamilyBtn" class="family-action"><span>⇄</span><div><strong>הצטרפות למשפחה</strong><small>באמצעות קוד הזמנה</small></div></button>
+      </section>
+      <article class="backup-card">
+        <h3>גיבוי מקומי</h3>
+        <p>אפשר לשמור עותק של הנתונים בקובץ ולהחזיר אותו למכשיר בעת הצורך.</p>
+        <div class="backup-actions"><button id="exportBtn">ייצוא גיבוי</button><label for="importFile">ייבוא גיבוי</label><input id="importFile" type="file" accept="application/json" hidden></div>
+      </article>
+      <article class="privacy-card"><strong>הפרטיות נשמרת</strong><p>כל עוד לא חיברת חשבון ענן, אף אדם אחר שנכנס לקישור אינו רואה את הנתונים שלך.</p></article>
+    </section>
+
     <section id="stats" class="page">
       <div class="page-title"><h2>סטטיסטיקה</h2></div>
       <div class="range-tabs">
@@ -72,19 +91,20 @@
         <button class="range" data-days="0">הכול</button>
       </div>
       <section class="stats-grid">
-        <div class="stat pink"><strong id="statNursing">0</strong><span>הנקות</span></div>
-        <div class="stat green"><strong id="statMinutes">0</strong><span>דקות</span></div>
-        <div class="stat blue"><strong id="statBottles">0</strong><span>בקבוקים</span></div>
-        <div class="stat lavender"><strong id="statMl">0</strong><span>מ״ל</span></div>
+        <div class="stat pink"><span class="stat-icon">🤱</span><strong id="statNursing">0</strong><span>הנקות</span></div>
+        <div class="stat green"><span class="stat-icon">⏱</span><strong id="statMinutes">0</strong><span>דקות הנקה</span></div>
+        <div class="stat blue"><span class="stat-icon">🍼</span><strong id="statBottles">0</strong><span>בקבוקים</span></div>
+        <div class="stat lavender"><span class="stat-icon">㎖</span><strong id="statMl">0</strong><span>מ״ל בבקבוקים</span></div>
       </section>
       <article class="chart-card"><h3>האכלות לפי יום</h3><canvas id="feedsChart" width="700" height="300"></canvas></article>
       <article class="chart-card"><h3>ימין מול שמאל</h3><canvas id="sidesChart" width="700" height="260"></canvas></article>
     </section>
 
-    <nav class="tabbar">
-      <button class="tab active" data-page="home"><span>⌂</span><small>בית</small></button>
-      <button class="tab" data-page="history"><span>☷</span><small>היסטוריה</small></button>
-      <button class="tab" data-page="stats"><span>◔</span><small>סטטיסטיקה</small></button>
+    <nav class="tabbar" aria-label="ניווט ראשי">
+      <button class="tab active" data-page="home"><span class="tab-icon">⌂</span><small>בית</small></button>
+      <button class="tab" data-page="history"><span class="tab-icon">≡</span><small>היסטוריה</small></button>
+      <button class="tab" data-page="stats"><span class="tab-icon">◔</span><small>סטטיסטיקה</small></button>
+      <button class="tab" data-page="family"><span class="tab-icon">⌂</span><small>משפחה</small></button>
     </nav>
   </main>
 
