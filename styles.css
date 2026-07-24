@@ -44,3 +44,18 @@ button,input{font:inherit}.hidden{display:none!important}
 @media (min-width:431px){body{padding:20px}.app{min-height:calc(100dvh - 40px);border-radius:32px;box-shadow:0 20px 70px rgba(25,35,45,.16);overflow:hidden}.tabbar{bottom:20px;border-radius:0 0 32px 32px}}
 @media (max-width:360px){.app{padding-left:14px;padding-right:14px}.feeding-grid{gap:16px;margin-left:4px;margin-right:4px}.since{font-size:52px}.feed-btn strong{font-size:19px}}
 @media (prefers-color-scheme:dark){:root{--bg:#0f1115;--card:#1b1d22;--text:#f7f7f9;--muted:#a5a8b0;--line:#2c2f36}body{background:var(--bg)}.app,.topbar,.tabbar{background:#17191e}.hero-card,.event,.summary-card,.chart-card{background:#1b1d22}.summary-card div{border-color:#30333a}.range-tabs{background:#25282e}.range.active{background:#3a3d45}.sheet{background:#1b1d22;color:white}.sheet input[type=datetime-local],.sheet input[type=number]{background:#272a30;color:white;border-color:#444}}
+
+/* Sprint 1 refinements */
+.hero-card{transition:background .2s ease,transform .2s ease}
+.hero-card.paused .since{color:var(--pink)}
+.hero-card.paused .eyebrow::after{content:' · בהנקה עכשיו';color:var(--pink);font-weight:700}
+.dual-control{margin:22px 8px -12px;display:flex;align-items:center;justify-content:center;gap:10px;color:var(--muted);font-size:14px;font-weight:650}
+.switch{width:48px;height:28px;border:0;border-radius:999px;background:#d8dbe0;padding:3px;transition:.2s;display:flex;align-items:center;direction:ltr}
+.switch span{width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.18);transform:translateX(0);transition:.2s}
+.switch.on{background:var(--pink)}
+.switch.on span{transform:translateX(20px)}
+.feed-btn:active,.quick-card:active,.tab:active,.primary:active,.presets button:active,.amount-row button:active{transform:scale(.97)}
+.quick-card,.tab,.primary,.presets button,.amount-row button{transition:transform .12s ease,filter .12s ease}
+.sheet form{width:100%;max-width:394px;margin:0 auto}
+.amount-row,.presets,.segmented{width:100%}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important;animation:none!important}}

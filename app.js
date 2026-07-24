@@ -1,41 +1,103 @@
-const STORAGE='guyTimeDataV1';
+const STORAGE='guyTimeDataV2';
 let data=load();
 let deferredPrompt=null;
 let chartDays=7;
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-function load(){try{return JSON.parse(localStorage.getItem(STORAGE))||{events:[],active:null,lastSide:null}}catch{return{events:[],active:null,lastSide:null}}}
+
+function initialData(){return {events:[],active:null,lastSide:null,dualMode:false}}
+function load(){
+  try{
+    const current=JSON.parse(localStorage.getItem(STORAGE));
+    if(current) return {...initialData(),...current};
+    const legacy=JSON.parse(localStorage.getItem('guyTimeDataV1'));
+    return legacy?{...initialData(),...legacy}:initialData();
+  }catch{return initialData()}
+}
 function save(){localStorage.setItem(STORAGE,JSON.stringify(data));render()}
 function uid(){return crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2)}
 function todayKey(d=new Date()){return d.toLocaleDateString('en-CA')}
 function fmtDuration(sec){sec=Math.max(0,Math.floor(sec));const h=String(Math.floor(sec/3600)).padStart(2,'0'),m=String(Math.floor(sec%3600/60)).padStart(2,'0'),s=String(sec%60).padStart(2,'0');return `${h}:${m}:${s}`}
-function vibrate(){if(navigator.vibrate)navigator.vibrate(25)}
+function haptic(pattern=18){try{if(navigator.vibrate)navigator.vibrate(pattern)}catch{}}
 function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),1800)}
-function addEvent(ev){data.events.push({id:uid(),createdAt:Date.now(),updatedAt:Date.now(),...ev});data.events.sort((a,b)=>b.start-a.start);save()}
-function latestFeed(){return data.events.filter(e=>e.type==='nursing'||e.type==='bottle').sort((a,b)=>b.start-a.start)[0]}
+function addEvent(ev){data.events.push({id:uid(),createdAt:Date.now(),updatedAt:Date.now(),...ev});data.events.sort((a,b)=>b.start-a.start)}
+function latestFeed(){return data.events.filter(e=>e.type==='nursing'||e.type==='bottle').sort((a,b)=>(b.end||b.start)-(a.end||a.start))[0]}
 function isVitaminToday(){return data.events.some(e=>e.type==='vitamin'&&todayKey(new Date(e.start))===todayKey())}
-function startStop(side){vibrate();if(data.active){const end=Date.now();addEvent({type:'nursing',side:data.active.side,start:data.active.start,end,duration:Math.max(1,Math.round((end-data.active.start)/1000))});data.lastSide=data.active.side;data.active=null;toast('ההנקה נשמרה');save();if(side!==data.lastSide) startStop(side);return}data.active={side,start:Date.now()};save()}
-function tick(){const last=latestFeed();$('#sinceLast').textContent=last?fmtDuration((Date.now()-(last.end||last.start))/1000):'--:--:--';if(data.active){$('#activeTimer').classList.remove('hidden');$('#activeTimer').textContent=`הנקה ${data.active.side==='right'?'ימין':'שמאל'} · ${fmtDuration((Date.now()-data.active.start)/1000)}`}else $('#activeTimer').classList.add('hidden')}
+function secondsSinceLastFeed(at=Date.now()) {const last=latestFeed();return last?Math.max(0,(at-(last.end||last.start))/1000):null}
+
+function startStop(side){
+  haptic();
+  if(data.active){
+    const end=Date.now();
+    const active=data.active;
+    addEvent({type:'nursing',side:active.side,start:active.start,end,duration:Math.max(1,Math.round((end-active.start)/1000))});
+    data.lastSide=active.side;
+    data.active=null;
+    save();
+    toast(active.side==='both'?'השאיבה הדו־צדדית נשמרה':'ההנקה נשמרה');
+    return;
+  }
+  const mode=data.dualMode?'both':side;
+  data.active={side:mode,start:Date.now(),pausedSince:secondsSinceLastFeed()};
+  save();
+}
+
+function tick(){
+  if(data.active){
+    $('#sinceLast').textContent=data.active.pausedSince==null?'--:--:--':fmtDuration(data.active.pausedSince);
+    $('.hero-card').classList.add('paused');
+    $('.sub').textContent='השעון נעצר בזמן ההנקה';
+    $('#activeTimer').classList.remove('hidden');
+    const label=data.active.side==='both'?'דו״צ':data.active.side==='right'?'ימין':'שמאל';
+    $('#activeTimer').textContent=`${label} · ${fmtDuration((Date.now()-data.active.start)/1000)}`;
+  }else{
+    const elapsed=secondsSinceLastFeed();
+    $('#sinceLast').textContent=elapsed==null?'--:--:--':fmtDuration(elapsed);
+    $('.hero-card').classList.remove('paused');
+    $('.sub').textContent='מאז ההאכלה האחרונה';
+    $('#activeTimer').classList.add('hidden');
+  }
+}
+
 function render(){
-  $$('.feed-btn').forEach(b=>{const s=b.dataset.side;b.classList.toggle('running',data.active?.side===s);b.classList.toggle('last',!data.active&&data.lastSide===s);b.querySelector('small').textContent=data.active?.side===s?'לחיצה לסיום':data.lastSide===s?'הנקה אחרונה':'לחיצה להתחלה'});
+  $$('.feed-btn').forEach(b=>{
+    const s=b.dataset.side;
+    const running=data.active && (data.active.side===s||data.active.side==='both');
+    const last=!data.active && (data.lastSide===s||data.lastSide==='both');
+    b.classList.toggle('running',!!running);
+    b.classList.toggle('last',!!last);
+    b.querySelector('small').textContent=running?'לחיצה לסיום':last?'האכלה אחרונה':'לחיצה להתחלה';
+  });
+  $('#dualToggle').classList.toggle('on',data.dualMode);
+  $('#dualToggle').setAttribute('aria-checked',String(data.dualMode));
   const vit=isVitaminToday();$('#vitaminBtn').classList.toggle('done',vit);$('#vitaminState').textContent=vit?'ניתן היום ✓':'טרם ניתן היום';
-  const todays=data.events.filter(e=>todayKey(new Date(e.start))===todayKey());$('#todayFeeds').textContent=todays.filter(e=>['nursing','bottle'].includes(e.type)).length;$('#todayMinutes').textContent=Math.round(todays.filter(e=>e.type==='nursing').reduce((a,e)=>a+(e.duration||0),0)/60);$('#todayMl').textContent=todays.filter(e=>e.type==='bottle').reduce((a,e)=>a+(+e.ml||0),0);
+  const todays=data.events.filter(e=>todayKey(new Date(e.start))===todayKey());
+  $('#todayFeeds').textContent=todays.filter(e=>['nursing','bottle'].includes(e.type)).length;
+  $('#todayMinutes').textContent=Math.round(todays.filter(e=>e.type==='nursing').reduce((a,e)=>a+(e.duration||0),0)/60);
+  $('#todayMl').textContent=todays.filter(e=>e.type==='bottle').reduce((a,e)=>a+(+e.ml||0),0);
   renderHistory();renderStats();tick();
 }
-function eventTitle(e){if(e.type==='nursing')return `הנקה ${e.side==='right'?'ימין':'שמאל'}`;if(e.type==='bottle')return `בקבוק · ${e.milk}`;return 'ויטמין D'}
+function sideLabel(side){return side==='both'?'דו״צ':side==='right'?'ימין':'שמאל'}
+function eventTitle(e){if(e.type==='nursing')return e.side==='both'?'שאיבה דו״צ':`הנקה ${sideLabel(e.side)}`;if(e.type==='bottle')return `בקבוק · ${e.milk}`;return 'ויטמין D'}
 function eventDetail(e){const d=new Date(e.start);const t=d.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});if(e.type==='nursing')return `${t} · ${Math.max(1,Math.round((e.duration||0)/60))} דקות`;if(e.type==='bottle')return `${t} · ${e.ml} מ״ל`;return `${t} · ניתן`}
 function renderHistory(){const list=$('#historyList');const ev=[...data.events].sort((a,b)=>b.start-a.start);if(!ev.length){list.innerHTML='<div class="empty">עדיין אין אירועים<br>ההאכלה הראשונה תופיע כאן 💗</div>';return}list.innerHTML=ev.map(e=>`<article class="event"><div class="event-icon">${e.type==='nursing'?'🤱':e.type==='bottle'?'🍼':'☀️'}</div><div><h4>${eventTitle(e)}</h4><p>${new Date(e.start).toLocaleDateString('he-IL')} · ${eventDetail(e)}</p></div><div class="event-actions"><button data-edit="${e.id}" aria-label="עריכה">✎</button><button data-delete="${e.id}" aria-label="מחיקה">⌫</button></div></article>`).join('');
-  $$('[data-delete]').forEach(b=>b.onclick=()=>{if(confirm('למחוק את האירוע?')){data.events=data.events.filter(e=>e.id!==b.dataset.delete);save()}});$$('[data-edit]').forEach(b=>b.onclick=()=>openEdit(b.dataset.edit));
+  $$('[data-delete]').forEach(b=>b.onclick=()=>{haptic(12);if(confirm('למחוק את האירוע?')){data.events=data.events.filter(e=>e.id!==b.dataset.delete);save()}});$$('[data-edit]').forEach(b=>b.onclick=()=>{haptic(12);openEdit(b.dataset.edit)});
 }
 function filtered(days){if(!days)return data.events;const cutoff=Date.now()-days*86400000;return data.events.filter(e=>e.start>=cutoff)}
 function renderStats(){const ev=filtered(chartDays),nur=ev.filter(e=>e.type==='nursing'),bot=ev.filter(e=>e.type==='bottle');$('#statNursing').textContent=nur.length;$('#statMinutes').textContent=Math.round(nur.reduce((a,e)=>a+(e.duration||0),0)/60);$('#statBottles').textContent=bot.length;$('#statMl').textContent=bot.reduce((a,e)=>a+(+e.ml||0),0);drawFeeds(ev);drawSides(nur)}
-function prepCanvas(c){const dpr=devicePixelRatio||1,rect=c.getBoundingClientRect();c.width=rect.width*dpr;c.height=(parseInt(c.getAttribute('height'))/700*rect.width)*dpr;const x=c.getContext('2d');x.scale(dpr,dpr);return{x,w:rect.width,h:c.height/dpr}}
-function drawFeeds(ev){const c=$('#feedsChart'),{x,w,h}=prepCanvas(c);x.clearRect(0,0,w,h);let n=chartDays||Math.min(30,Math.max(7,Math.ceil((Date.now()-Math.min(...ev.map(e=>e.start),Date.now()))/86400000)));const days=[...Array(n)].map((_,i)=>{const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-(n-1-i));return d});const vals=days.map(d=>ev.filter(e=>['nursing','bottle'].includes(e.type)&&todayKey(new Date(e.start))===todayKey(d)).length),max=Math.max(1,...vals),gap=5,bw=(w-30)/n-gap;x.font='11px -apple-system';x.textAlign='center';days.forEach((d,i)=>{const bh=(h-42)*vals[i]/max,px=15+i*(bw+gap);x.fillStyle='#f48fb1';x.beginPath();x.roundRect(px,h-24-bh,bw,bh,6);x.fill();if(n<=7){x.fillStyle=getComputedStyle(document.body).color;x.fillText(d.toLocaleDateString('he-IL',{weekday:'short'}),px+bw/2,h-6)}})}
-function drawSides(nur){const c=$('#sidesChart'),{x,w,h}=prepCanvas(c),r=nur.filter(e=>e.side==='right').length,l=nur.filter(e=>e.side==='left').length,total=Math.max(1,r+l);x.clearRect(0,0,w,h);const barW=w-60;x.fillStyle='#f0f1f3';x.beginPath();x.roundRect(30,65,barW,45,20);x.fill();x.fillStyle='#f48fb1';x.beginPath();x.roundRect(30,65,barW*r/total,45,20);x.fill();x.fillStyle='#8fd39d';x.beginPath();x.roundRect(30+barW*r/total,65,barW*l/total,45,20);x.fill();x.fillStyle=getComputedStyle(document.body).color;x.font='bold 18px -apple-system';x.textAlign='center';x.fillText(`ימין ${r}`,w*.27,145);x.fillText(`שמאל ${l}`,w*.73,145)}
-function openEdit(id){const e=data.events.find(x=>x.id===id);if(!e)return;$('#editId').value=id;const dt=new Date(e.start-e.start%60000);$('#editDate').value=new Date(dt.getTime()-dt.getTimezoneOffset()*60000).toISOString().slice(0,16);const box=$('#editDynamic');if(e.type==='nursing')box.innerHTML=`<label>צד</label><select id="editSide"><option value="right" ${e.side==='right'?'selected':''}>ימין</option><option value="left" ${e.side==='left'?'selected':''}>שמאל</option></select><label>משך בדקות</label><input id="editDuration" type="number" min="1" value="${Math.max(1,Math.round(e.duration/60))}">`;else if(e.type==='bottle')box.innerHTML=`<label>סוג חלב</label><select id="editMilk"><option ${e.milk==='חלב אם שאוב'?'selected':''}>חלב אם שאוב</option><option ${e.milk==='תמ״ל'?'selected':''}>תמ״ל</option></select><label>כמות במ״ל</label><input id="editMl" type="number" min="0" value="${e.ml}">`;else box.innerHTML='<p>ניתן לערוך את מועד מתן הוויטמין.</p>';$('#editDialog').showModal()}
-$('#editForm').addEventListener('submit',e=>{e.preventDefault();const ev=data.events.find(x=>x.id===$('#editId').value);if(!ev)return;ev.start=new Date($('#editDate').value).getTime();ev.updatedAt=Date.now();if(ev.type==='nursing'){ev.side=$('#editSide').value;ev.duration=+$('#editDuration').value*60;ev.end=ev.start+ev.duration*1000}if(ev.type==='bottle'){ev.milk=$('#editMilk').value;ev.ml=+$('#editMl').value}save();$('#editDialog').close();toast('האירוע עודכן')});
-$$('.feed-btn').forEach(b=>b.onclick=()=>startStop(b.dataset.side));$('#bottleBtn').onclick=()=>$('#bottleDialog').showModal();$('#vitaminBtn').onclick=()=>{if(isVitaminToday())return toast('ויטמין D כבר ניתן היום');addEvent({type:'vitamin',start:Date.now()});vibrate();toast('ויטמין D נשמר')};
-$('#minus').onclick=()=>$('#amount').value=Math.max(0,+$('#amount').value-5);$('#plus').onclick=()=>$('#amount').value=Math.min(500,+$('#amount').value+5);$$('[data-ml]').forEach(b=>b.onclick=()=>$('#amount').value=b.dataset.ml);$('#bottleForm').addEventListener('submit',e=>{e.preventDefault();const ml=+$('#amount').value;if(ml<=0)return toast('יש להזין כמות');addEvent({type:'bottle',milk:$('input[name=milk]:checked').value,ml,start:Date.now()});$('#bottleDialog').close();vibrate();toast('הבקבוק נשמר')});
-$$('.tab').forEach(t=>t.onclick=()=>{$$('.tab,.page').forEach(x=>x.classList.remove('active'));t.classList.add('active');$('#'+t.dataset.page).classList.add('active');render()});$$('.range').forEach(r=>r.onclick=()=>{$$('.range').forEach(x=>x.classList.remove('active'));r.classList.add('active');chartDays=+r.dataset.days;renderStats()});$('#clearAll').onclick=()=>{if(confirm('למחוק את כל ההיסטוריה? לא ניתן לבטל.')){data={events:[],active:null,lastSide:null};save()}};
-window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;$('#installBtn').classList.remove('hidden')});$('#installBtn').onclick=async()=>{if(deferredPrompt){deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null;$('#installBtn').classList.add('hidden')}else toast('ב־Safari: שיתוף ← הוספה למסך הבית')};
+function prepCanvas(c){const dpr=devicePixelRatio||1,rect=c.getBoundingClientRect();if(!rect.width)return{x:null,w:0,h:0};c.width=rect.width*dpr;c.height=(parseInt(c.getAttribute('height'))/700*rect.width)*dpr;const x=c.getContext('2d');x.scale(dpr,dpr);return{x,w:rect.width,h:c.height/dpr}}
+function drawFeeds(ev){const c=$('#feedsChart'),{x,w,h}=prepCanvas(c);if(!x)return;x.clearRect(0,0,w,h);let n=chartDays||Math.min(30,Math.max(7,Math.ceil((Date.now()-Math.min(...ev.map(e=>e.start),Date.now()))/86400000)));const days=[...Array(n)].map((_,i)=>{const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-(n-1-i));return d});const vals=days.map(d=>ev.filter(e=>['nursing','bottle'].includes(e.type)&&todayKey(new Date(e.start))===todayKey(d)).length),max=Math.max(1,...vals),gap=5,bw=(w-30)/n-gap;x.font='11px -apple-system';x.textAlign='center';days.forEach((d,i)=>{const bh=(h-42)*vals[i]/max,px=15+i*(bw+gap);x.fillStyle='#f48fb1';x.beginPath();x.roundRect(px,h-24-bh,bw,bh,6);x.fill();if(n<=7){x.fillStyle=getComputedStyle(document.body).color;x.fillText(d.toLocaleDateString('he-IL',{weekday:'short'}),px+bw/2,h-6)}})}
+function drawSides(nur){const c=$('#sidesChart'),{x,w,h}=prepCanvas(c);if(!x)return;const r=nur.filter(e=>e.side==='right'||e.side==='both').length,l=nur.filter(e=>e.side==='left'||e.side==='both').length,total=Math.max(1,r+l);x.clearRect(0,0,w,h);const barW=w-60;x.fillStyle='#f0f1f3';x.beginPath();x.roundRect(30,65,barW,45,20);x.fill();x.fillStyle='#f48fb1';x.beginPath();x.roundRect(30,65,barW*r/total,45,20);x.fill();x.fillStyle='#8fd39d';x.beginPath();x.roundRect(30+barW*r/total,65,barW*l/total,45,20);x.fill();x.fillStyle=getComputedStyle(document.body).color;x.font='bold 18px -apple-system';x.textAlign='center';x.fillText(`ימין ${r}`,w*.27,145);x.fillText(`שמאל ${l}`,w*.73,145)}
+function openEdit(id){const e=data.events.find(x=>x.id===id);if(!e)return;$('#editId').value=id;const dt=new Date(e.start-e.start%60000);$('#editDate').value=new Date(dt.getTime()-dt.getTimezoneOffset()*60000).toISOString().slice(0,16);const box=$('#editDynamic');if(e.type==='nursing')box.innerHTML=`<label>צד</label><select id="editSide"><option value="right" ${e.side==='right'?'selected':''}>ימין</option><option value="left" ${e.side==='left'?'selected':''}>שמאל</option><option value="both" ${e.side==='both'?'selected':''}>דו״צ</option></select><label>משך בדקות</label><input id="editDuration" type="number" min="1" value="${Math.max(1,Math.round(e.duration/60))}">`;else if(e.type==='bottle')box.innerHTML=`<label>סוג חלב</label><select id="editMilk"><option ${e.milk==='חלב אם שאוב'?'selected':''}>חלב אם שאוב</option><option ${e.milk==='תמ״ל'?'selected':''}>תמ״ל</option></select><label>כמות במ״ל</label><input id="editMl" type="number" min="0" value="${e.ml}">`;else box.innerHTML='<p>ניתן לערוך את מועד מתן הוויטמין.</p>';$('#editDialog').showModal()}
+$('#editForm').addEventListener('submit',e=>{e.preventDefault();const ev=data.events.find(x=>x.id===$('#editId').value);if(!ev)return;ev.start=new Date($('#editDate').value).getTime();ev.updatedAt=Date.now();if(ev.type==='nursing'){ev.side=$('#editSide').value;ev.duration=+$('#editDuration').value*60;ev.end=ev.start+ev.duration*1000}if(ev.type==='bottle'){ev.milk=$('#editMilk').value;ev.ml=+$('#editMl').value}haptic();save();$('#editDialog').close();toast('האירוע עודכן')});
+
+$$('.feed-btn').forEach(b=>b.onclick=()=>startStop(b.dataset.side));
+$('#dualToggle').onclick=()=>{if(data.active)return toast('יש לסיים קודם את ההאכלה הפעילה');haptic(14);data.dualMode=!data.dualMode;save()};
+$('#bottleBtn').onclick=()=>{haptic(12);$('#bottleDialog').showModal()};
+$('#vitaminBtn').onclick=()=>{haptic(12);if(isVitaminToday())return toast('ויטמין D כבר ניתן היום');addEvent({type:'vitamin',start:Date.now()});save();toast('ויטמין D נשמר')};
+$('#minus').onclick=()=>{haptic(10);$('#amount').value=Math.max(0,+$('#amount').value-5)};$('#plus').onclick=()=>{haptic(10);$('#amount').value=Math.min(500,+$('#amount').value+5)};$$('[data-ml]').forEach(b=>b.onclick=()=>{haptic(10);$('#amount').value=b.dataset.ml});
+$('#bottleForm').addEventListener('submit',e=>{e.preventDefault();const ml=+$('#amount').value;if(ml<=0)return toast('יש להזין כמות');const now=Date.now();addEvent({type:'bottle',milk:$('input[name=milk]:checked').value,ml,start:now,end:now});save();$('#bottleDialog').close();haptic();toast('הבקבוק נשמר')});
+$$('.tab').forEach(t=>t.onclick=()=>{haptic(8);$$('.tab,.page').forEach(x=>x.classList.remove('active'));t.classList.add('active');$('#'+t.dataset.page).classList.add('active');render()});$$('.range').forEach(r=>r.onclick=()=>{haptic(8);$$('.range').forEach(x=>x.classList.remove('active'));r.classList.add('active');chartDays=+r.dataset.days;renderStats()});
+$('#clearAll').onclick=()=>{haptic(15);if(confirm('למחוק את כל ההיסטוריה? לא ניתן לבטל.')){data=initialData();save()}};
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;$('#installBtn').classList.remove('hidden')});$('#installBtn').onclick=async()=>{haptic(10);if(deferredPrompt){deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null;$('#installBtn').classList.add('hidden')}else toast('ב־Safari: שיתוף ← הוספה למסך הבית')};
 if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js'));
 window.addEventListener('resize',()=>renderStats());setInterval(tick,1000);setTimeout(()=>{$('#splash').style.opacity='0';setTimeout(()=>{$('#splash').remove();$('#app').classList.remove('hidden');render()},400)},900);

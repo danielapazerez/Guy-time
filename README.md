@@ -34,3 +34,10 @@
 
 ## תיקון בגרסה 1.2
 - מיקום כפתורי ההנקה תוקן: שמאל ירוק בצד שמאל, ימין ורוד בצד ימין.
+
+## Version 1.3 — Sprint 1
+- Added gentle haptic feedback on supported devices.
+- Added dual-side pumping mode (דו״צ).
+- The “time since last feeding” clock pauses when nursing starts and resets only when nursing ends.
+- Dual-side sessions highlight both buttons and are stored as one event.
+- Improved bottom-sheet centering and interaction polish.
