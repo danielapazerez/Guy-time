@@ -1,9 +1,11 @@
-# Guy Time 1.7 – Cloud preparation
+# חיבור Supabase — Guy Time 1.9
 
-Version 1.7 remains fully local-first. No Supabase credentials are embedded.
+1. Supabase → SQL Editor → New query.
+2. הדביקי את כל תוכן `GUYTIME-SUPABASE-SETUP.sql` ולחצי Run.
+3. Authentication → URL Configuration:
+   - Site URL: `https://danielapazerez.github.io/Guy-time/`
+   - Redirect URL: `https://danielapazerez.github.io/Guy-time/`
+4. העלי את גרסה 1.9 ל־GitHub Pages.
+5. התחברי באימייל מתוך מסך "משפחה".
 
-To enable shared family sync in the next step, create a Supabase project and provide:
-- Project URL
-- Public anon key
-
-The application will then add authenticated family membership, migration of existing local history, and cross-device synchronization. Until then, all data remains in the browser on the current device.
+ה־Project URL וה־Publishable key כבר משולבים בגרסה. אין לשלוח או להטמיע Secret/Service Role key.

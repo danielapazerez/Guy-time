@@ -1,23 +1,21 @@
-# Guy Time PWA 1.7
+# Guy Time PWA 1.9
 
-Local-first family foundation.
+גרסה משפחתית מסונכרנת של Guy Time.
 
-## Included
-- All 1.6 feeding, bottle, vitamin D, history and statistics features.
-- New Family screen showing local-only status.
-- Local JSON backup export and restore.
-- Privacy explanation.
-- Cloud create/join controls prepared for Supabase connection.
-- Offline PWA remains fully functional without an account.
+## חדש ב־1.9
+- הוסרה לחלוטין אפשרות דו״צ מהנקה. בהנקה נשארו ימין ושמאל בלבד.
+- דו״צ נשאר במסך השאיבה בלבד.
+- סטטיסטיקת ימין/שמאל מחושבת לפי **זמן מצטבר** וכוללת הנקה + שאיבה.
+- בשאיבה דו״צ, משך השאיבה מתווסף גם לימין וגם לשמאל.
+- התחברות באימייל, יצירת משפחה, קוד הזמנה וסנכרון Supabase בזמן אמת.
+- עבודה מקומית נשמרת; לאחר חיבור למשפחה הנתונים המקומיים מועלים לענן.
 
-## Not yet active
-Cloud sharing is not active until a Supabase project URL and anon key are supplied and authentication/database policies are configured.
+## הפעלה
+1. הריצי ב־Supabase SQL Editor את `GUYTIME-SUPABASE-SETUP.sql` פעם אחת.
+2. ב־Supabase: Authentication → URL Configuration.
+3. הגדירי Site URL ו־Redirect URL ל־`https://danielapazerez.github.io/Guy-time/`.
+4. העלי את כל קובצי התיקייה ל־GitHub והפעילי GitHub Pages.
+5. במסך "משפחה", הזיני אימייל ופתחי את קישור הכניסה שיישלח.
+6. צרי משפחה והעבירי לבן הזוג את קוד ההזמנה.
 
-## גרסה 1.8
-- הפרדה ברורה בין הנקה לשאיבה.
-- מסך שאיבה עם ימין, שמאל ודו״צ, טיימר וכמות במ״ל.
-- ביטול בקבוק או שאיבה אינו שומר אירוע.
-- לחיצה נוספת על ויטמין D מבטלת את הסימון של היום.
-- הדגשה חזקה של "האכלה אחרונה" בתוך העיגול.
-- תיקון החפיפה בין האייקון לטקסט בעיגולי ההנקה.
-- תיקון מיקום תג "מקומי" באזור העליון.
+אין להכניס לאפליקציה Secret key או Service Role key.

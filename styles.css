@@ -84,3 +84,7 @@ button,input,select{font:inherit}.hidden{display:none!important}button{cursor:po
   .feed-btn small.last-feed-label{font-size:11.5px}
   .pump-clock{font-size:42px}
 }
+
+/* v1.9 Supabase family sync */
+.cloud-card input,.join-row input{width:100%;border:1px solid var(--line);border-radius:14px;padding:13px;background:#fff;font-size:16px;margin-top:14px;direction:ltr;text-align:left}
+.cloud-primary{margin-top:10px}.join-row{display:grid;grid-template-columns:1fr;gap:8px}.connected{background:#eefaf2!important;color:#3d9b5b!important}.connected:before{color:#55b974!important}.chart-note{margin:-4px 0 8px;color:var(--muted);font-size:12px}.cloud-card button:not(.primary){margin-top:10px;border:0;border-radius:14px;padding:11px 14px;background:#f3f4f6;font-weight:700}.cloud-card .text-danger{background:transparent;color:#d75d6e}.family-action.hidden,.hidden{display:none!important}

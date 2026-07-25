@@ -32,12 +32,6 @@
         <div id="timerState" class="timer-state">מוכן להאכלה הבאה</div>
       </article>
 
-      <button id="dualToggle" class="dual-control" type="button" role="switch" aria-checked="false">
-        <span class="dual-icon">⇆</span>
-        <span class="dual-copy"><strong>הנקה דו״צ</strong><small>הפעלת שני הצדדים יחד</small></span>
-        <span class="switch-dot" aria-hidden="true"></span>
-      </button>
-
       <section class="feeding-grid">
         <button class="feed-btn left" data-side="left">
           <span class="feed-icon" aria-hidden="true">●</span><strong>שמאל</strong><small>לחיצה להתחלה</small>
@@ -75,12 +69,24 @@
       <div class="page-title"><h2>שיתוף משפחתי</h2></div>
       <article class="family-status-card">
         <div class="status-mark">⌂</div>
-        <div><h3>מצב מקומי</h3><p>הנתונים נשמרים רק במכשיר הזה. האפליקציה ממשיכה לעבוד גם בלי חשבון ובלי אינטרנט.</p></div>
+        <div><h3 id="familyStatusTitle">מצב מקומי</h3><p id="familyStatusText">הנתונים נשמרים במכשיר הזה. אפשר להתחבר כדי לשתף ולעדכן בשני הטלפונים.</p></div>
       </article>
-      <section class="family-actions">
-        <button id="createFamilyBtn" class="family-action primary-family"><span>＋</span><div><strong>יצירת משפחה</strong><small>יופעל לאחר חיבור Supabase</small></div></button>
-        <button id="joinFamilyBtn" class="family-action"><span>⇄</span><div><strong>הצטרפות למשפחה</strong><small>באמצעות קוד הזמנה</small></div></button>
+      <article id="authCard" class="backup-card cloud-card">
+        <h3>התחברות לשיתוף</h3>
+        <p>הזיני אימייל ונשלח אלייך קישור כניסה מאובטח.</p>
+        <input id="authEmail" type="email" inputmode="email" placeholder="name@example.com" autocomplete="email">
+        <button id="sendMagicLink" class="primary cloud-primary" type="button">שליחת קישור כניסה</button>
+      </article>
+      <section id="familyActions" class="family-actions hidden">
+        <button id="createFamilyBtn" class="family-action primary-family"><span>＋</span><div><strong>יצירת משפחה</strong><small>יצירת קוד לשיתוף עם בן הזוג</small></div></button>
+        <div class="join-row"><input id="joinCode" type="text" placeholder="קוד הזמנה" maxlength="10"><button id="joinFamilyBtn" class="family-action"><span>⇄</span><div><strong>הצטרפות</strong><small>למשפחה קיימת</small></div></button></div>
       </section>
+      <article id="connectedCard" class="backup-card cloud-card hidden">
+        <h3>מחוברים לענן</h3>
+        <p>קוד המשפחה: <strong id="familyCode">—</strong></p>
+        <button id="copyFamilyCode" type="button">העתקת הקוד</button>
+        <button id="signOutBtn" class="text-danger" type="button">התנתקות</button>
+      </article>
       <article class="backup-card">
         <h3>גיבוי מקומי</h3>
         <p>אפשר לשמור עותק של הנתונים בקובץ ולהחזיר אותו למכשיר בעת הצורך.</p>
@@ -105,7 +111,7 @@
         <div class="stat pump"><span class="stat-icon">㎖</span><strong id="statPumpMl">0</strong><span>מ״ל נשאבו</span></div>
       </section>
       <article class="chart-card"><h3>האכלות לפי יום</h3><canvas id="feedsChart" width="700" height="300"></canvas></article>
-      <article class="chart-card"><h3>ימין מול שמאל</h3><canvas id="sidesChart" width="700" height="260"></canvas></article>
+      <article class="chart-card"><h3>זמן ימין מול שמאל</h3><p class="chart-note">כולל הנקה ושאיבה</p><canvas id="sidesChart" width="700" height="260"></canvas></article>
     </section>
 
     <nav class="tabbar" aria-label="ניווט ראשי">
@@ -161,6 +167,7 @@
   </dialog>
 
   <div id="toast" class="toast"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="app.js"></script>
 </body>
 </html>
