@@ -46,3 +46,41 @@ button,input,select{font:inherit}.hidden{display:none!important}button{cursor:po
 
 /* v1.7 Family & backup foundation */
 .top-actions{display:flex;align-items:center;gap:8px}.sync-badge{font-size:12px;font-weight:700;padding:6px 10px;border-radius:999px;background:#f2f3f5;color:#6f7480}.sync-badge.local:before{content:'●';font-size:8px;margin-left:6px;color:#a6abb5}.family-status-card,.backup-card,.privacy-card{background:rgba(255,255,255,.92);border:1px solid rgba(244,143,177,.16);border-radius:24px;padding:18px;margin-bottom:14px;box-shadow:0 10px 30px rgba(77,60,70,.06)}.family-status-card{display:flex;gap:14px;align-items:flex-start}.status-mark{display:grid;place-items:center;width:44px;height:44px;border-radius:15px;background:#fff0f5;color:#e4779d;font-size:22px;flex:none}.family-status-card h3,.backup-card h3{margin:0 0 5px}.family-status-card p,.backup-card p,.privacy-card p{margin:0;color:#767985;line-height:1.55;font-size:14px}.family-actions{display:grid;gap:10px;margin-bottom:14px}.family-action{width:100%;display:flex;align-items:center;gap:14px;text-align:right;border:1px solid #ececf0;background:white;border-radius:20px;padding:16px}.family-action>span{display:grid;place-items:center;width:40px;height:40px;border-radius:14px;background:#f6f6f8;font-size:22px}.family-action strong,.family-action small{display:block}.family-action small{color:#8a8d96;margin-top:3px}.primary-family{border-color:rgba(244,143,177,.25);background:linear-gradient(135deg,#fff7fa,#fff)}.primary-family>span{background:#ffe5ee;color:#dd6f96}.backup-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}.backup-actions button,.backup-actions label{border:0;border-radius:14px;padding:12px;text-align:center;font-weight:700;background:#f3f4f6;color:#50535c;cursor:pointer}.backup-actions button{background:#f7a9c2;color:white}.privacy-card{background:#fff9fb}.privacy-card strong{display:block;margin-bottom:5px;color:#d56f94}.tabbar{grid-template-columns:repeat(4,1fr)}
+
+/* v1.8 UX & Pumping */
+.topbar{grid-template-columns:96px minmax(0,1fr) 96px;overflow:visible}
+.top-actions{grid-column:1;justify-self:start;min-width:0;position:relative;z-index:2}
+.sync-badge{white-space:nowrap;max-width:88px;overflow:visible}
+.brand{grid-column:2}
+
+.feed-btn{gap:2px;padding:18% 7% 12%}
+.feed-icon{margin-bottom:22px;flex:none}
+.feed-btn strong{line-height:1.05;white-space:nowrap}
+.feed-btn small{line-height:1.2;min-height:15px;white-space:nowrap}
+.feed-btn small.last-feed-label{font-size:13px;font-weight:850;color:#fff;text-shadow:0 1px 9px rgba(0,0,0,.2);letter-spacing:.05px}
+
+.pump-card{width:100%;margin-top:18px;border:1px solid #e6ddff;background:linear-gradient(135deg,#fbf9ff,#f4efff);border-radius:var(--radius-m);min-height:82px;padding:14px 16px;display:grid;grid-template-columns:46px 1fr 24px;align-items:center;gap:12px;text-align:right;color:#7051c7;box-shadow:var(--shadow-card);transition:transform .16s ease,box-shadow .16s ease}
+.pump-card:active{transform:scale(.98);box-shadow:0 5px 14px rgba(92,63,160,.08)}
+.pump-icon{width:43px;height:43px;border-radius:15px;display:grid;place-items:center;background:#8f69dc;color:#fff;font-size:22px;box-shadow:0 8px 18px rgba(112,81,199,.22)}
+.pump-copy{display:flex;flex-direction:column;gap:3px}.pump-copy strong{font-size:18px}.pump-copy small{font-size:12px;color:#8878ac}.pump-arrow{font-size:30px;line-height:1;color:#9c85e8}
+
+.sheet-intro{text-align:center;color:var(--muted);font-size:13px;line-height:1.5;margin:-8px 0 16px}
+.pump-side-options{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;direction:ltr}
+.pump-side{direction:rtl;border:1px solid #e6e1f3;background:#fff;border-radius:17px;min-height:88px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;color:#6f607f}
+.pump-side span{font-size:20px;letter-spacing:-4px;color:#9c85e8}.pump-side strong{font-size:15px}
+.pump-side.selected{border-color:#aa8ced;background:#f6f1ff;color:#7956cf;box-shadow:0 7px 20px rgba(112,81,199,.12)}
+.pump-clock{text-align:center;direction:ltr;font-variant-numeric:tabular-nums;font-size:48px;font-weight:520;letter-spacing:-2px;color:#8058d4;margin:21px 0 14px}
+.pump-start{width:100%;border:0;border-radius:17px;padding:15px;background:linear-gradient(135deg,#a884ec,#7f56d9);color:#fff;font-weight:780;box-shadow:0 10px 24px rgba(112,81,199,.22)}
+.pump-start.running{background:linear-gradient(135deg,#8e6bd8,#6843bc)}
+.pump-amount{margin-top:15px}.pump-amount label{text-align:center;color:#6d5b91}
+.primary.purple{margin-top:16px;background:linear-gradient(135deg,#a884ec,#7f56d9);box-shadow:0 10px 24px rgba(112,81,199,.22)}
+.stat.pump{background:#f6f1ff}
+
+@media(max-width:365px){
+  .topbar{grid-template-columns:84px minmax(0,1fr) 84px}
+  .sync-badge{font-size:11px;padding:5px 8px;max-width:80px}
+  .feed-icon{margin-bottom:18px}
+  .feed-btn strong{font-size:19px}
+  .feed-btn small.last-feed-label{font-size:11.5px}
+  .pump-clock{font-size:42px}
+}

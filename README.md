@@ -12,3 +12,12 @@ Local-first family foundation.
 
 ## Not yet active
 Cloud sharing is not active until a Supabase project URL and anon key are supplied and authentication/database policies are configured.
+
+## גרסה 1.8
+- הפרדה ברורה בין הנקה לשאיבה.
+- מסך שאיבה עם ימין, שמאל ודו״צ, טיימר וכמות במ״ל.
+- ביטול בקבוק או שאיבה אינו שומר אירוע.
+- לחיצה נוספת על ויטמין D מבטלת את הסימון של היום.
+- הדגשה חזקה של "האכלה אחרונה" בתוך העיגול.
+- תיקון החפיפה בין האייקון לטקסט בעיגולי ההנקה.
+- תיקון מיקום תג "מקומי" באזור העליון.

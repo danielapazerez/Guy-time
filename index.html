@@ -34,7 +34,7 @@
 
       <button id="dualToggle" class="dual-control" type="button" role="switch" aria-checked="false">
         <span class="dual-icon">⇆</span>
-        <span class="dual-copy"><strong>שאיבה דו״צ</strong><small>הפעלת שני הצדדים יחד</small></span>
+        <span class="dual-copy"><strong>הנקה דו״צ</strong><small>הפעלת שני הצדדים יחד</small></span>
         <span class="switch-dot" aria-hidden="true"></span>
       </button>
 
@@ -48,9 +48,15 @@
       </section>
       <div id="activeTimer" class="active-timer hidden"></div>
 
+      <button id="pumpBtn" class="pump-card" type="button">
+        <span class="pump-icon">◉</span>
+        <span class="pump-copy"><strong>שאיבה</strong><small>מדידת זמן וכמות לכל שאיבה</small></span>
+        <span class="pump-arrow">‹</span>
+      </button>
+
       <section class="quick-grid">
-        <button id="bottleBtn" class="quick-card blue"><span class="quick-icon">🍼</span><strong>בקבוק</strong></button>
-        <button id="vitaminBtn" class="quick-card yellow"><span class="quick-icon">☀️</span><strong>ויטמין D</strong><small id="vitaminState">טרם ניתן היום</small></button>
+        <button id="bottleBtn" class="quick-card blue" type="button"><span class="quick-icon">🍼</span><strong>בקבוק</strong><small>הוספת בקבוק</small></button>
+        <button id="vitaminBtn" class="quick-card yellow" type="button"><span class="quick-icon">☀️</span><strong>ויטמין D</strong><small id="vitaminState">טרם ניתן היום</small></button>
       </section>
 
       <section class="summary-card">
@@ -95,6 +101,8 @@
         <div class="stat green"><span class="stat-icon">⏱</span><strong id="statMinutes">0</strong><span>דקות הנקה</span></div>
         <div class="stat blue"><span class="stat-icon">🍼</span><strong id="statBottles">0</strong><span>בקבוקים</span></div>
         <div class="stat lavender"><span class="stat-icon">㎖</span><strong id="statMl">0</strong><span>מ״ל בבקבוקים</span></div>
+        <div class="stat pump"><span class="stat-icon">◉</span><strong id="statPumps">0</strong><span>שאיבות</span></div>
+        <div class="stat pump"><span class="stat-icon">㎖</span><strong id="statPumpMl">0</strong><span>מ״ל נשאבו</span></div>
       </section>
       <article class="chart-card"><h3>האכלות לפי יום</h3><canvas id="feedsChart" width="700" height="300"></canvas></article>
       <article class="chart-card"><h3>ימין מול שמאל</h3><canvas id="sidesChart" width="700" height="260"></canvas></article>
@@ -110,7 +118,7 @@
 
   <dialog id="bottleDialog" class="sheet">
     <form method="dialog" id="bottleForm">
-      <div class="sheet-head"><button value="cancel">ביטול</button><h2>בקבוק</h2><span></span></div>
+      <div class="sheet-head"><button id="cancelBottle" type="button">ביטול</button><h2>בקבוק</h2><span></span></div>
       <label>סוג חלב</label>
       <div class="segmented">
         <input type="radio" name="milk" id="pumped" value="חלב אם שאוב" checked><label for="pumped">חלב אם שאוב</label>
@@ -119,7 +127,26 @@
       <label for="amount">כמות במ״ל</label>
       <div class="amount-row"><button type="button" id="minus">−</button><input id="amount" type="number" min="0" max="500" step="5" value="90"><button type="button" id="plus">+</button></div>
       <div class="presets"><button type="button" data-ml="60">60</button><button type="button" data-ml="90">90</button><button type="button" data-ml="120">120</button><button type="button" data-ml="150">150</button></div>
-      <button id="saveBottle" class="primary" value="default">שמירה ✓</button>
+      <button id="saveBottle" class="primary" type="submit">שמירה ✓</button>
+    </form>
+  </dialog>
+
+  <dialog id="pumpDialog" class="sheet pump-sheet">
+    <form id="pumpForm">
+      <div class="sheet-head"><button id="cancelPump" type="button">ביטול</button><h2>שאיבה</h2><span></span></div>
+      <p class="sheet-intro">בחרי צד והתחילי למדוד. בסיום אפשר להזין את הכמות הכוללת.</p>
+      <div class="pump-side-options" role="radiogroup" aria-label="צד השאיבה">
+        <button type="button" class="pump-side" data-pump-side="left"><span>●</span><strong>שמאל</strong></button>
+        <button type="button" class="pump-side selected" data-pump-side="both"><span>●●</span><strong>דו״צ</strong></button>
+        <button type="button" class="pump-side" data-pump-side="right"><span>●</span><strong>ימין</strong></button>
+      </div>
+      <div id="pumpClock" class="pump-clock">00:00:00</div>
+      <button id="pumpStartStop" class="pump-start" type="button">התחילי</button>
+      <div id="pumpAmountWrap" class="pump-amount hidden">
+        <label for="pumpAmount">סה״כ מ״ל שנשאבו</label>
+        <div class="amount-row"><button type="button" id="pumpMinus">−</button><input id="pumpAmount" type="number" min="0" max="1000" step="5" value="0"><button type="button" id="pumpPlus">+</button></div>
+      </div>
+      <button id="savePump" class="primary purple hidden" type="submit">שמירת השאיבה</button>
     </form>
   </dialog>
 
