@@ -1,5 +1,5 @@
 const STORAGE='guyTimeDataV3';
-const APP_VERSION='1.9.3';
+const APP_VERSION='1.9.4';
 const SUPABASE_URL='https://xmegfobzciqsokjmgmib.supabase.co';
 const SUPABASE_KEY='sb_publishable_pSHG07sRyfzHOjdqDDuSDQ_fH6DNLiy';
 const sb=window.supabase?.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,detectSessionInUrl:true}});
@@ -242,11 +242,21 @@ async function refreshFamilyUi(){
   $('#connectedEmail').textContent=cloud.session?.user?.email||'';
   setCloudBadge(cloud.familyId?(navigator.onLine?'connected':'pending'):'local')
 }
+function markFamilyChanged(){
+  // אחרי מעבר משפחה יש להעלות מחדש את כל ההיסטוריה, אחרת אירועים שסונכרנו למשפחה הישנה לא יגיעו לחדשה.
+  const prev=localStorage.getItem('gtLastFamilyId')||'';
+  if(cloud.familyId&&prev&&prev!==cloud.familyId){
+    data.events=data.events.map(e=>({...e,syncPending:true}));
+    persistOnly();
+  }
+  if(cloud.familyId)localStorage.setItem('gtLastFamilyId',cloud.familyId);
+}
 async function loadMembership(){
   if(!cloud.session){await refreshFamilyUi();return}
   const {data:m,error}=await sb.from('family_members').select('family_id,families(invite_code)').eq('user_id',cloud.session.user.id).maybeSingle();
   if(error)console.error('membership',error);
   cloud.familyId=m?.family_id||null;cloud.familyCode=m?.families?.invite_code||null;
+  markFamilyChanged();
   await refreshFamilyUi();
   if(cloud.familyId){await pullCloud();await queueCloudSync();await subscribeRealtime()}
 }
@@ -254,7 +264,14 @@ async function initCloud(){
   if(!sb)return;
   const {data:{session}}=await sb.auth.getSession();cloud.session=session;
   await loadMembership();
-  sb.auth.onAuthStateChange(async(_event,session)=>{cloud.session=session;cloud.familyId=null;cloud.familyCode=null;await loadMembership()});
+  // אסור להריץ שאילתות Supabase ישירות בתוך ה-callback של onAuthStateChange (עלול להיתקע). דוחים ל-tick הבא.
+  sb.auth.onAuthStateChange((event,session)=>{
+    const sameUser=cloud.session?.user?.id===session?.user?.id;
+    cloud.session=session;
+    if(event==='TOKEN_REFRESHED'||event==='INITIAL_SESSION')return;
+    if(event==='SIGNED_IN'&&sameUser&&cloud.familyId)return;
+    setTimeout(async()=>{cloud.familyId=null;cloud.familyCode=null;await loadMembership()},0);
+  });
 }
 let otpCooldownUntil=0;
 function authMessage(error){
@@ -311,7 +328,7 @@ function cloudErrorMessage(error,action='פעולת הסנכרון'){
   const msg=String(error?.message||'').toLowerCase();
   const code=String(error?.code||'');
   if(msg.includes('not authenticated')||code==='PGRST301')return 'החיבור לחשבון פג. התחברי שוב ונסי מחדש';
-  if(msg.includes('already in family'))return 'החשבון כבר משויך למשפחה';
+  if(msg.includes('already in family'))return 'החשבון כבר משויך למשפחה עם בני משפחה נוספים. יש ללחוץ על "עזיבת המשפחה" ואז להצטרף עם הקוד';
   if(msg.includes('invalid code'))return 'קוד ההזמנה אינו תקין';
   if(msg.includes('could not find the function')||code==='PGRST202')return 'הגדרת הסנכרון ב-Supabase עדיין לא הושלמה';
   if(msg.includes('permission denied')||code==='42501')return 'חסרה הרשאה ב-Supabase. יש להריץ את קובץ התיקון';
@@ -342,11 +359,24 @@ $('#joinFamilyBtn').onclick=async()=>{
   finally{btn.disabled=false}
 };
 $('#copyFamilyCode').onclick=async()=>{try{await navigator.clipboard.writeText(cloud.familyCode||'');toast('הקוד הועתק')}catch{toast('לא ניתן להעתיק אוטומטית')}};
+$('#leaveFamilyBtn').onclick=async()=>{
+  if(!sb||!cloud.session||!cloud.familyId)return;
+  if(!confirm('לעזוב את המשפחה? הנתונים שבמכשיר יישמרו, ואפשר יהיה להצטרף למשפחה אחרת עם קוד.'))return;
+  const btn=$('#leaveFamilyBtn');btn.disabled=true;
+  try{
+    if(cloud.channel){await sb.removeChannel(cloud.channel);cloud.channel=null}
+    const {error}=await sb.rpc('leave_family');if(error)throw error;
+    cloud.familyId=null;cloud.familyCode=null;
+    await loadMembership();
+    toast('עזבת את המשפחה. עכשיו אפשר להצטרף עם קוד');
+  }catch(error){toast(cloudErrorMessage(error,'עזיבת המשפחה'))}
+  finally{btn.disabled=false}
+};
 $('#signOutBtn').onclick=async()=>{if(cloud.channel)await sb.removeChannel(cloud.channel);await sb.auth.signOut();cloud={session:null,familyId:null,familyCode:null,channel:null,syncing:false,retryTimer:null};await refreshFamilyUi();toast('התנתקת')};
 window.addEventListener('online',async()=>{setCloudBadge('pending');await pullCloud();await queueCloudSync()});
 window.addEventListener('offline',()=>{if(cloud.familyId)setCloudBadge('pending')});
 initCloud();
 
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;$('#installBtn').classList.remove('hidden')});$('#installBtn').onclick=async()=>{haptic(10);if(deferredPrompt){deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null;$('#installBtn').classList.add('hidden')}else toast('ב־Safari: שיתוף ← הוספה למסך הבית')};
-if('serviceWorker'in navigator)window.addEventListener('load',async()=>{const reg=await navigator.serviceWorker.register('./sw.js?v=1.9.3');reg.update();navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!sessionStorage.getItem('gt-reloaded')){sessionStorage.setItem('gt-reloaded','1');location.reload()}})});
+if('serviceWorker'in navigator)window.addEventListener('load',async()=>{const reg=await navigator.serviceWorker.register('./sw.js?v=1.9.4');reg.update();navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!sessionStorage.getItem('gt-reloaded')){sessionStorage.setItem('gt-reloaded','1');location.reload()}})});
 window.addEventListener('resize',()=>renderStats());setInterval(tick,1000);setTimeout(()=>{$('#splash').style.opacity='0';setTimeout(()=>{$('#splash').remove();$('#app').classList.remove('hidden');render()},400)},900);
