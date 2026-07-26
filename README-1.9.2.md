@@ -1,6 +1,6 @@
-# Guy Time 1.9.2 — תיקון יצירת משפחה
+# Guy Time 1.9.3 — תיקון יצירת משפחה
 
-1. ב-Supabase פתחי SQL Editor והריצי פעם אחת את `GUYTIME-SUPABASE-MIGRATION-1.9.2.sql`.
+1. ב-Supabase פתחי SQL Editor והריצי פעם אחת את `GUYTIME-SUPABASE-MIGRATION-1.9.3.sql`.
 2. החליפי ב-GitHub את קובצי האפליקציה בקבצים שבתיקייה זו.
 3. באייפון רענני את האתר. באפליקציה ממסך הבית סגרי ופתחי מחדש.
 

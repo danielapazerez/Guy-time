@@ -6,7 +6,7 @@ create extension if not exists pgcrypto;
 create table if not exists public.families (
   id uuid primary key default gen_random_uuid(),
   name text not null default 'Guy Time',
-  invite_code text not null unique default upper(substr(encode(gen_random_bytes(6), 'hex'), 1, 8)),
+  invite_code text not null unique default upper(substr(encode(extensions.gen_random_bytes(6), 'hex'), 1, 8)),
   created_by uuid not null references auth.users(id) on delete cascade,
   created_at timestamptz not null default now()
 );
@@ -92,7 +92,7 @@ begin
 
   if fid is not null then return invite; end if;
 
-  invite := upper(substr(encode(gen_random_bytes(6), 'hex'), 1, 8));
+  invite := upper(substr(encode(extensions.gen_random_bytes(6), 'hex'), 1, 8));
   insert into public.families(name, invite_code, created_by)
   values (coalesce(nullif(trim(family_name), ''), 'Guy Time'), invite, auth.uid())
   returning id into fid;

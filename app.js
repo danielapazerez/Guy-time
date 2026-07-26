@@ -1,5 +1,5 @@
 const STORAGE='guyTimeDataV3';
-const APP_VERSION='1.9.2';
+const APP_VERSION='1.9.3';
 const SUPABASE_URL='https://xmegfobzciqsokjmgmib.supabase.co';
 const SUPABASE_KEY='sb_publishable_pSHG07sRyfzHOjdqDDuSDQ_fH6DNLiy';
 const sb=window.supabase?.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,detectSessionInUrl:true}});
@@ -256,17 +256,54 @@ async function initCloud(){
   await loadMembership();
   sb.auth.onAuthStateChange(async(_event,session)=>{cloud.session=session;cloud.familyId=null;cloud.familyCode=null;await loadMembership()});
 }
+let otpCooldownUntil=0;
+function authMessage(error){
+  const msg=String(error?.message||'').toLowerCase();
+  if(msg.includes('rate limit')||msg.includes('email rate'))return 'נשלחו יותר מדי בקשות. המתיני כשעה ונסי שוב פעם אחת';
+  if(msg.includes('invalid login credentials'))return 'האימייל או הסיסמה אינם נכונים';
+  if(msg.includes('email not confirmed'))return 'החשבון עדיין לא אושר במייל';
+  if(msg.includes('user already registered'))return 'כבר קיים חשבון עם האימייל הזה';
+  if(msg.includes('password'))return 'הסיסמה צריכה להכיל לפחות 6 תווים';
+  return error?.message||'אירעה שגיאה בהתחברות';
+}
+async function runAuthButton(btn,action){
+  if(btn.disabled)return;btn.disabled=true;
+  try{await action()}finally{btn.disabled=false}
+}
+$('#passwordSignInBtn').onclick=()=>runAuthButton($('#passwordSignInBtn'),async()=>{
+  const email=$('#authEmail').value.trim(),password=$('#authPassword').value;
+  if(!email||!password)return toast('יש להזין אימייל וסיסמה');
+  const {error}=await sb.auth.signInWithPassword({email,password});
+  if(error)return toast(authMessage(error));
+  toast('התחברת בהצלחה');
+});
+$('#passwordSignUpBtn').onclick=()=>runAuthButton($('#passwordSignUpBtn'),async()=>{
+  const email=$('#authEmail').value.trim(),password=$('#authPassword').value;
+  if(!email||password.length<6)return toast('יש להזין אימייל וסיסמה של 6 תווים לפחות');
+  const {data:result,error}=await sb.auth.signUp({email,password});
+  if(error)return toast(authMessage(error));
+  if(result.session)toast('החשבון נוצר והתחברת');
+  else toast('החשבון נוצר. ייתכן שנדרש אישור במייל');
+});
+$('#showEmailLinkBtn').onclick=()=>$('#emailLinkWrap').classList.toggle('hidden');
 $('#sendMagicLink').onclick=async()=>{
+  const now=Date.now();
+  if(now<otpCooldownUntil)return toast(`אפשר לשלוח שוב בעוד ${Math.ceil((otpCooldownUntil-now)/1000)} שניות`);
   const email=$('#authEmail').value.trim();if(!email)return toast('יש להזין אימייל');
+  const btn=$('#sendMagicLink');btn.disabled=true;
   const {error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+location.pathname,shouldCreateUser:true}});
-  if(error)return toast('לא ניתן לשלוח כרגע');
-  $('#otpWrap').classList.remove('hidden');toast('קוד כניסה נשלח לאימייל')
+  if(error){btn.disabled=false;return toast(authMessage(error))}
+  otpCooldownUntil=Date.now()+60000;
+  $('#otpWrap').classList.remove('hidden');
+  let left=60;btn.textContent=`שליחה חוזרת בעוד ${left}`;
+  const timer=setInterval(()=>{left--;if(left<=0){clearInterval(timer);btn.disabled=false;btn.textContent='שליחת קישור או קוד'}else btn.textContent=`שליחה חוזרת בעוד ${left}`},1000);
+  toast('הודעת כניסה נשלחה למייל');
 };
 $('#verifyOtpBtn').onclick=async()=>{
   const email=$('#authEmail').value.trim(),token=$('#authOtp').value.trim();
   if(!email||token.length<6)return toast('יש להזין אימייל וקוד');
   const {error}=await sb.auth.verifyOtp({email,token,type:'email'});
-  if(error)return toast('הקוד שגוי או שפג תוקפו');
+  if(error)return toast(authMessage(error));
   toast('התחברת בהצלחה')
 };
 function cloudErrorMessage(error,action='פעולת הסנכרון'){
@@ -311,5 +348,5 @@ window.addEventListener('offline',()=>{if(cloud.familyId)setCloudBadge('pending'
 initCloud();
 
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;$('#installBtn').classList.remove('hidden')});$('#installBtn').onclick=async()=>{haptic(10);if(deferredPrompt){deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null;$('#installBtn').classList.add('hidden')}else toast('ב־Safari: שיתוף ← הוספה למסך הבית')};
-if('serviceWorker'in navigator)window.addEventListener('load',async()=>{const reg=await navigator.serviceWorker.register('./sw.js?v=1.9.1');reg.update();navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!sessionStorage.getItem('gt-reloaded')){sessionStorage.setItem('gt-reloaded','1');location.reload()}})});
+if('serviceWorker'in navigator)window.addEventListener('load',async()=>{const reg=await navigator.serviceWorker.register('./sw.js?v=1.9.3');reg.update();navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!sessionStorage.getItem('gt-reloaded')){sessionStorage.setItem('gt-reloaded','1');location.reload()}})});
 window.addEventListener('resize',()=>renderStats());setInterval(tick,1000);setTimeout(()=>{$('#splash').style.opacity='0';setTimeout(()=>{$('#splash').remove();$('#app').classList.remove('hidden');render()},400)},900);

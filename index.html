@@ -73,14 +73,20 @@
       </article>
       <article id="authCard" class="backup-card cloud-card">
         <h3>התחברות לשיתוף</h3>
-        <p>הזיני אימייל. יישלח אלייך קוד כניסה; אפשר גם להשתמש בקישור שבמייל.</p>
+        <p>להתחברות יציבה באפליקציה באייפון, השתמשי באימייל ובסיסמה.</p>
         <input id="authEmail" type="email" inputmode="email" placeholder="name@example.com" autocomplete="email">
-        <button id="sendMagicLink" class="primary cloud-primary" type="button">שליחת קוד כניסה</button>
-        <div id="otpWrap" class="otp-wrap hidden">
-          <label for="authOtp">קוד בן 8 ספרות מהמייל</label>
-          <input id="authOtp" type="text" inputmode="numeric" maxlength="8" placeholder="12345678" autocomplete="one-time-code">
-          <button id="verifyOtpBtn" class="primary cloud-primary" type="button">אימות והתחברות</button>
-          <small>אם קיבלת רק קישור, אפשר ללחוץ עליו. לאחר החזרה ל־Guy Time ההתחברות תזוהה אוטומטית.</small>
+        <input id="authPassword" type="password" placeholder="סיסמה – לפחות 6 תווים" autocomplete="current-password">
+        <button id="passwordSignInBtn" class="primary cloud-primary" type="button">התחברות עם סיסמה</button>
+        <button id="passwordSignUpBtn" class="secondary-auth" type="button">יצירת חשבון חדש</button>
+        <button id="showEmailLinkBtn" class="auth-link-toggle" type="button">אפשרויות כניסה במייל</button>
+        <div id="emailLinkWrap" class="otp-wrap hidden">
+          <button id="sendMagicLink" class="secondary-auth" type="button">שליחת קישור או קוד</button>
+          <div id="otpWrap" class="hidden">
+            <label for="authOtp">קוד בן 8 ספרות, אם הוא מופיע ישירות במייל</label>
+            <input id="authOtp" type="text" inputmode="numeric" maxlength="8" placeholder="12345678" autocomplete="one-time-code">
+            <button id="verifyOtpBtn" class="primary cloud-primary" type="button">אימות הקוד</button>
+          </div>
+          <small>באייפון, קישור מהמייל נפתח ב־Safari ולא תמיד מעביר את ההתחברות לאפליקציה שהותקנה במסך הבית. לכן עדיף להשתמש בסיסמה.</small>
         </div>
       </article>
       <section id="familyActions" class="family-actions hidden">
@@ -174,6 +180,6 @@
 
   <div id="toast" class="toast"></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=1.9.2"></script>
+  <script src="app.js?v=1.9.3"></script>
 </body>
 </html>
