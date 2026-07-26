@@ -19,3 +19,6 @@
 6. צרי משפחה והעבירי לבן הזוג את קוד ההזמנה.
 
 אין להכניס לאפליקציה Secret key או Service Role key.
+
+## 1.9.1
+תיקוני התחברות OTP, Cache, Realtime, Offline queue ומחיקות מסונכרנות. יש להריץ פעם אחת את `GUYTIME-SUPABASE-MIGRATION-1.9.1.sql`.

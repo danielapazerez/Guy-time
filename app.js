@@ -1,17 +1,18 @@
 const STORAGE='guyTimeDataV3';
+const APP_VERSION='1.9.1';
 const SUPABASE_URL='https://xmegfobzciqsokjmgmib.supabase.co';
 const SUPABASE_KEY='sb_publishable_pSHG07sRyfzHOjdqDDuSDQ_fH6DNLiy';
 const sb=window.supabase?.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,detectSessionInUrl:true}});
-let cloud={session:null,familyId:null,familyCode:null,channel:null,syncing:false};
+let cloud={session:null,familyId:null,familyCode:null,channel:null,syncing:false,retryTimer:null};
 let data=load();
 let deferredPrompt=null;
 let chartDays=7;
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 
-function initialData(){return {events:[],deletedIds:[],active:null,lastSide:null,pumpDraft:null}}
+function initialData(){return {events:[],deletedIds:[],deletedRecords:{},active:null,lastSide:null,pumpDraft:null}}
 function exportBackup(){
   haptic(12);
-  const payload={app:'Guy Time',version:'1.9',exportedAt:new Date().toISOString(),data};
+  const payload={app:'Guy Time',version:APP_VERSION,exportedAt:new Date().toISOString(),data};
   const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob),a=document.createElement('a');
   a.href=url;a.download=`guy-time-backup-${todayKey()}.json`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
@@ -44,7 +45,7 @@ function todayKey(d=new Date()){return d.toLocaleDateString('en-CA')}
 function fmtDuration(sec){sec=Math.max(0,Math.floor(sec));const h=String(Math.floor(sec/3600)).padStart(2,'0'),m=String(Math.floor(sec%3600/60)).padStart(2,'0'),s=String(sec%60).padStart(2,'0');return `${h}:${m}:${s}`}
 function haptic(pattern=18){try{if(navigator.vibrate)navigator.vibrate(pattern)}catch{}}
 function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),1800)}
-function addEvent(ev){data.events.push({id:uid(),createdAt:Date.now(),updatedAt:Date.now(),...ev});data.events.sort((a,b)=>b.start-a.start)}
+function addEvent(ev){data.events.push({id:uid(),createdAt:Date.now(),updatedAt:Date.now(),syncPending:true,...ev});data.events.sort((a,b)=>b.start-a.start)}
 function latestFeed(){return data.events.filter(e=>e.type==='nursing'||e.type==='bottle').sort((a,b)=>(b.end||b.start)-(a.end||a.start))[0]}
 function isVitaminToday(){return data.events.some(e=>e.type==='vitamin'&&todayKey(new Date(e.start))===todayKey())}
 function secondsSinceLastFeed(at=Date.now()) {const last=latestFeed();return last?Math.max(0,(at-(last.end||last.start))/1000):null}
@@ -131,7 +132,7 @@ function renderHistory(){
     const detail=e.type==='nursing'?`${Math.max(1,Math.round((e.duration||0)/60))} דקות`:e.type==='pumping'?`${Math.max(1,Math.round((e.duration||0)/60))} דקות · ${e.ml||0} מ״ל`:e.type==='bottle'?`${e.ml} מ״ל · ${e.milk}`:'ניתן';
     return `<article class="event"><div class="event-time">${time}</div><div class="event-icon">${e.type==='nursing'?'🤱':e.type==='pumping'?'◉':e.type==='bottle'?'🍼':'☀️'}</div><div><h4>${eventTitle(e)}</h4><p>${detail}</p></div><div class="event-actions"><button data-edit="${e.id}" aria-label="עריכה">✎</button><button data-delete="${e.id}" aria-label="מחיקה">⌫</button></div></article>`
   }).join('')}</div></section>`).join('');
-  $$('[data-delete]').forEach(b=>b.onclick=()=>{haptic(12);if(confirm('למחוק את האירוע?')){data.events=data.events.filter(e=>e.id!==b.dataset.delete);data.deletedIds=[...new Set([...(data.deletedIds||[]),b.dataset.delete])];save()}});
+  $$('[data-delete]').forEach(b=>b.onclick=()=>{haptic(12);if(confirm('למחוק את האירוע?')){const id=b.dataset.delete;data.events=data.events.filter(e=>e.id!==id);data.deletedIds=[...new Set([...(data.deletedIds||[]),id])];data.deletedRecords={...(data.deletedRecords||{}),[id]:Date.now()};save()}});
   $$('[data-edit]').forEach(b=>b.onclick=()=>{haptic(12);openEdit(b.dataset.edit)});
 }
 function filtered(days){if(!days)return data.events;const cutoff=Date.now()-days*86400000;return data.events.filter(e=>e.start>=cutoff)}
@@ -140,11 +141,11 @@ function prepCanvas(c){const dpr=devicePixelRatio||1,rect=c.getBoundingClientRec
 function drawFeeds(ev){const c=$('#feedsChart'),{x,w,h}=prepCanvas(c);if(!x)return;x.clearRect(0,0,w,h);let n=chartDays||Math.min(30,Math.max(7,Math.ceil((Date.now()-Math.min(...ev.map(e=>e.start),Date.now()))/86400000)));const days=[...Array(n)].map((_,i)=>{const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-(n-1-i));return d});const vals=days.map(d=>ev.filter(e=>['nursing','bottle'].includes(e.type)&&todayKey(new Date(e.start))===todayKey(d)).length),max=Math.max(1,...vals),gap=5,bw=(w-30)/n-gap;x.font='11px -apple-system';x.textAlign='center';days.forEach((d,i)=>{const bh=(h-42)*vals[i]/max,px=15+i*(bw+gap);x.fillStyle='#f48fb1';x.beginPath();x.roundRect(px,h-24-bh,bw,bh,6);x.fill();if(n<=7){x.fillStyle=getComputedStyle(document.body).color;x.fillText(d.toLocaleDateString('he-IL',{weekday:'short'}),px+bw/2,h-6)}})}
 function drawSides(sideEvents){const c=$('#sidesChart'),{x,w,h}=prepCanvas(c);if(!x)return;let rightSec=0,leftSec=0;sideEvents.forEach(e=>{const d=+e.duration||0;if(e.side==='right')rightSec+=d;else if(e.side==='left')leftSec+=d;else if(e.side==='both'){rightSec+=d;leftSec+=d}});const total=Math.max(1,rightSec+leftSec);x.clearRect(0,0,w,h);const barW=w-60;x.fillStyle='#f0f1f3';x.beginPath();x.roundRect(30,65,barW,45,20);x.fill();x.fillStyle='#f48fb1';x.beginPath();x.roundRect(30,65,barW*rightSec/total,45,20);x.fill();x.fillStyle='#8fd39d';x.beginPath();x.roundRect(30+barW*rightSec/total,65,barW*leftSec/total,45,20);x.fill();x.fillStyle=getComputedStyle(document.body).color;x.font='bold 16px -apple-system';x.textAlign='center';x.fillText(`ימין ${Math.round(rightSec/60)} דק׳`,w*.27,145);x.fillText(`שמאל ${Math.round(leftSec/60)} דק׳`,w*.73,145)}
 function openEdit(id){const e=data.events.find(x=>x.id===id);if(!e)return;$('#editId').value=id;const dt=new Date(e.start-e.start%60000);$('#editDate').value=new Date(dt.getTime()-dt.getTimezoneOffset()*60000).toISOString().slice(0,16);const box=$('#editDynamic');if(e.type==='nursing')box.innerHTML=`<label>צד</label><select id="editSide"><option value="right" ${e.side==='right'?'selected':''}>ימין</option><option value="left" ${e.side==='left'?'selected':''}>שמאל</option></select><label>משך בדקות</label><input id="editDuration" type="number" min="1" value="${Math.max(1,Math.round(e.duration/60))}">`;else if(e.type==='pumping')box.innerHTML=`<label>צד</label><select id="editSide"><option value="right" ${e.side==='right'?'selected':''}>ימין</option><option value="left" ${e.side==='left'?'selected':''}>שמאל</option></select><label>משך בדקות</label><input id="editDuration" type="number" min="1" value="${Math.max(1,Math.round(e.duration/60))}"><label>כמות במ״ל</label><input id="editMl" type="number" min="0" value="${e.ml||0}">`;else if(e.type==='bottle')box.innerHTML=`<label>סוג חלב</label><select id="editMilk"><option ${e.milk==='חלב אם שאוב'?'selected':''}>חלב אם שאוב</option><option ${e.milk==='תמ״ל'?'selected':''}>תמ״ל</option></select><label>כמות במ״ל</label><input id="editMl" type="number" min="0" value="${e.ml}">`;else box.innerHTML='<p>ניתן לערוך את מועד מתן הוויטמין.</p>';$('#editDialog').showModal()}
-$('#editForm').addEventListener('submit',e=>{e.preventDefault();const ev=data.events.find(x=>x.id===$('#editId').value);if(!ev)return;ev.start=new Date($('#editDate').value).getTime();ev.updatedAt=Date.now();if(ev.type==='nursing'||ev.type==='pumping'){ev.side=$('#editSide').value;ev.duration=+$('#editDuration').value*60;ev.end=ev.start+ev.duration*1000;if(ev.type==='pumping')ev.ml=+$('#editMl').value}if(ev.type==='bottle'){ev.milk=$('#editMilk').value;ev.ml=+$('#editMl').value}haptic();save();$('#editDialog').close();toast('האירוע עודכן')});
+$('#editForm').addEventListener('submit',e=>{e.preventDefault();const ev=data.events.find(x=>x.id===$('#editId').value);if(!ev)return;ev.start=new Date($('#editDate').value).getTime();ev.updatedAt=Date.now();ev.syncPending=true;if(ev.type==='nursing'||ev.type==='pumping'){ev.side=$('#editSide').value;ev.duration=+$('#editDuration').value*60;ev.end=ev.start+ev.duration*1000;if(ev.type==='pumping')ev.ml=+$('#editMl').value}if(ev.type==='bottle'){ev.milk=$('#editMilk').value;ev.ml=+$('#editMl').value}haptic();save();$('#editDialog').close();toast('האירוע עודכן')});
 
 $$('.feed-btn').forEach(b=>b.onclick=()=>startStop(b.dataset.side));
 $('#bottleBtn').onclick=()=>{haptic(12);$('#bottleDialog').showModal()};
-$('#vitaminBtn').onclick=()=>{haptic(12);const todayEvent=data.events.find(e=>e.type==='vitamin'&&todayKey(new Date(e.start))===todayKey());if(todayEvent){data.events=data.events.filter(e=>e.id!==todayEvent.id);data.deletedIds=[...new Set([...(data.deletedIds||[]),todayEvent.id])];save();toast('ויטמין D בוטל');return}addEvent({type:'vitamin',start:Date.now()});save();toast('ויטמין D נשמר')};
+$('#vitaminBtn').onclick=()=>{haptic(12);const todayEvent=data.events.find(e=>e.type==='vitamin'&&todayKey(new Date(e.start))===todayKey());if(todayEvent){data.events=data.events.filter(e=>e.id!==todayEvent.id);data.deletedIds=[...new Set([...(data.deletedIds||[]),todayEvent.id])];data.deletedRecords={...(data.deletedRecords||{}),[todayEvent.id]:Date.now()};save();toast('ויטמין D בוטל');return}addEvent({type:'vitamin',start:Date.now()});save();toast('ויטמין D נשמר')};
 $('#minus').onclick=()=>{haptic(10);$('#amount').value=Math.max(0,+$('#amount').value-5)};$('#plus').onclick=()=>{haptic(10);$('#amount').value=Math.min(500,+$('#amount').value+5)};$$('[data-ml]').forEach(b=>b.onclick=()=>{haptic(10);$('#amount').value=b.dataset.ml});
 $('#cancelBottle').onclick=()=>{$('#bottleDialog').close();haptic(8)};
 $('#bottleForm').addEventListener('submit',e=>{e.preventDefault();const ml=+$('#amount').value;if(ml<=0)return toast('יש להזין כמות');const now=Date.now();addEvent({type:'bottle',milk:$('input[name=milk]:checked').value,ml,start:now,end:now});save();$('#bottleDialog').close();haptic();toast('הבקבוק נשמר')});
@@ -163,24 +164,119 @@ $('#pumpForm').addEventListener('submit',e=>{e.preventDefault();if(!pumpUi.start
 setInterval(updatePumpClock,1000);
 
 $$('.tab').forEach(t=>t.onclick=()=>{haptic(8);$$('.tab,.page').forEach(x=>x.classList.remove('active'));t.classList.add('active');$('#'+t.dataset.page).classList.add('active');render()});$$('.range').forEach(r=>r.onclick=()=>{haptic(8);$$('.range').forEach(x=>x.classList.remove('active'));r.classList.add('active');chartDays=+r.dataset.days;renderStats()});
-$('#clearAll').onclick=()=>{haptic(15);if(confirm('למחוק את כל ההיסטוריה? לא ניתן לבטל.')){const ids=data.events.map(e=>e.id);data={...initialData(),deletedIds:[...new Set([...(data.deletedIds||[]),...ids])]};save()}};
+$('#clearAll').onclick=()=>{haptic(15);if(confirm('למחוק את כל ההיסטוריה? לא ניתן לבטל.')){const ids=data.events.map(e=>e.id),ts=Date.now(),deletedRecords={...(data.deletedRecords||{})};ids.forEach(id=>deletedRecords[id]=ts);data={...initialData(),deletedIds:[...new Set([...(data.deletedIds||[]),...ids])],deletedRecords};save()}};
 $('#exportBtn').onclick=exportBackup;
 $('#importFile').onchange=e=>{importBackup(e.target.files?.[0]);e.target.value=''};
 
 
-async function queueCloudSync(){if(!sb||!cloud.session||!cloud.familyId||cloud.syncing)return;cloud.syncing=true;try{const deleted=[...(data.deletedIds||[])];if(deleted.length){const {error}=await sb.from('events').delete().eq('family_id',cloud.familyId).in('id',deleted);if(error)throw error;data.deletedIds=[];localStorage.setItem(STORAGE,JSON.stringify(data))}const rows=data.events.map(e=>({id:e.id,family_id:cloud.familyId,event_data:e,updated_at:new Date(e.updatedAt||Date.now()).toISOString()}));if(rows.length){const {error}=await sb.from('events').upsert(rows,{onConflict:'id'});if(error)throw error}setCloudBadge(true)}catch(err){console.error(err);setCloudBadge(false)}finally{cloud.syncing=false}}
-async function pullCloud(){if(!cloud.familyId)return;const {data:rows,error}=await sb.from('events').select('event_data').eq('family_id',cloud.familyId);if(error){console.error(error);return}const remote=(rows||[]).map(r=>r.event_data);const merged=new Map(data.events.map(e=>[e.id,e]));remote.forEach(e=>{const old=merged.get(e.id);if(!old||(e.updatedAt||0)>=(old.updatedAt||0))merged.set(e.id,e)});data.events=[...merged.values()].sort((a,b)=>b.start-a.start);localStorage.setItem(STORAGE,JSON.stringify(data));render()}
-function setCloudBadge(ok){const b=$('#syncBadge');b.textContent=ok?'מסונכרן':'לא מסונכרן';b.classList.toggle('local',!ok);b.classList.toggle('connected',ok)}
-async function refreshFamilyUi(){const signed=!!cloud.session;$('#authCard').classList.toggle('hidden',signed);$('#familyActions').classList.toggle('hidden',!signed||!!cloud.familyId);$('#connectedCard').classList.toggle('hidden',!cloud.familyId);$('#familyStatusTitle').textContent=cloud.familyId?'שיתוף פעיל':signed?'מחוברת לחשבון':'מצב מקומי';$('#familyStatusText').textContent=cloud.familyId?'כל אירוע מסתנכרן בין בני המשפחה. גם ללא אינטרנט הנתונים נשמרים מקומית.':signed?'צרי משפחה או הצטרפי באמצעות קוד.':'הנתונים נשמרים במכשיר הזה. אפשר להתחבר כדי לשתף ולעדכן בשני הטלפונים.';$('#familyCode').textContent=cloud.familyCode||'—';setCloudBadge(!!cloud.familyId)}
-async function loadMembership(){if(!cloud.session)return;const {data:m}=await sb.from('family_members').select('family_id,families(invite_code)').eq('user_id',cloud.session.user.id).maybeSingle();cloud.familyId=m?.family_id||null;cloud.familyCode=m?.families?.invite_code||null;refreshFamilyUi();if(cloud.familyId){await pullCloud();await queueCloudSync();if(cloud.channel)await sb.removeChannel(cloud.channel);cloud.channel=sb.channel('guytime-events').on('postgres_changes',{event:'*',schema:'public',table:'events',filter:`family_id=eq.${cloud.familyId}`},()=>pullCloud()).subscribe()}}
-async function initCloud(){if(!sb)return;const {data:{session}}=await sb.auth.getSession();cloud.session=session;await loadMembership();sb.auth.onAuthStateChange(async(_event,session)=>{cloud.session=session;cloud.familyId=null;cloud.familyCode=null;await loadMembership();refreshFamilyUi()})}
-$('#sendMagicLink').onclick=async()=>{const email=$('#authEmail').value.trim();if(!email)return toast('יש להזין אימייל');const {error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+location.pathname}});toast(error?'לא ניתן לשלוח כרגע':'קישור כניסה נשלח לאימייל')};
-$('#createFamilyBtn').onclick=async()=>{const {data:code,error}=await sb.rpc('create_family',{family_name:'Guy Time'});if(error)return toast('יצירת המשפחה נכשלה');toast('המשפחה נוצרה');await loadMembership();await navigator.clipboard?.writeText(code)};
-$('#joinFamilyBtn').onclick=async()=>{const code=$('#joinCode').value.trim().toUpperCase();if(!code)return toast('יש להזין קוד');const {error}=await sb.rpc('join_family',{join_code:code});if(error)return toast('הקוד אינו תקין');toast('הצטרפת למשפחה');await loadMembership()};
-$('#copyFamilyCode').onclick=async()=>{await navigator.clipboard?.writeText(cloud.familyCode||'');toast('הקוד הועתק')};
-$('#signOutBtn').onclick=async()=>{await sb.auth.signOut();cloud={session:null,familyId:null,familyCode:null,channel:null,syncing:false};refreshFamilyUi();toast('התנתקת')};
+function persistOnly(){localStorage.setItem(STORAGE,JSON.stringify(data))}
+function setCloudBadge(state){
+  const b=$('#syncBadge');
+  b.classList.remove('local','connected','pending','error');
+  if(state==='connected'){b.textContent='מסונכרן';b.classList.add('connected')}
+  else if(state==='pending'){b.textContent='ממתין לסנכרון';b.classList.add('pending')}
+  else if(state==='error'){b.textContent='שגיאת סנכרון';b.classList.add('error')}
+  else{b.textContent='לא מסונכרן';b.classList.add('local')}
+}
+function normalizeDeletedRecords(){
+  data.deletedRecords=data.deletedRecords||{};
+  for(const id of (data.deletedIds||[])) if(!data.deletedRecords[id]) data.deletedRecords[id]=Date.now();
+}
+async function queueCloudSync(){
+  normalizeDeletedRecords();
+  if(!sb||!cloud.session||!cloud.familyId)return setCloudBadge('local');
+  if(!navigator.onLine)return setCloudBadge('pending');
+  if(cloud.syncing)return;
+  cloud.syncing=true;setCloudBadge('pending');
+  try{
+    const changed=data.events.filter(e=>e.syncPending||!e.syncedAt);
+    if(changed.length){
+      const rows=changed.map(e=>({id:e.id,family_id:cloud.familyId,event_data:{...e,syncPending:false},updated_at:new Date(e.updatedAt||Date.now()).toISOString(),deleted_at:null}));
+      const {error}=await sb.from('events').upsert(rows,{onConflict:'id'});if(error)throw error;
+      const ids=new Set(changed.map(e=>e.id));
+      data.events=data.events.map(e=>ids.has(e.id)?{...e,syncPending:false,syncedAt:Date.now()}:e);
+    }
+    const deleted=Object.entries(data.deletedRecords||{});
+    if(deleted.length){
+      const rows=deleted.map(([id,ts])=>({id,family_id:cloud.familyId,event_data:{id,deleted:true,updatedAt:ts},updated_at:new Date(ts).toISOString(),deleted_at:new Date(ts).toISOString()}));
+      const {error}=await sb.from('events').upsert(rows,{onConflict:'id'});if(error)throw error;
+      data.deletedIds=[];data.deletedRecords={};
+    }
+    persistOnly();setCloudBadge('connected');
+  }catch(err){console.error('Guy Time sync failed',err);setCloudBadge('error');clearTimeout(cloud.retryTimer);cloud.retryTimer=setTimeout(queueCloudSync,5000)}
+  finally{cloud.syncing=false}
+}
+async function pullCloud(){
+  if(!cloud.familyId||!navigator.onLine)return;
+  const {data:rows,error}=await sb.from('events').select('id,event_data,updated_at,deleted_at').eq('family_id',cloud.familyId);
+  if(error){console.error(error);setCloudBadge('error');return}
+  normalizeDeletedRecords();
+  const merged=new Map(data.events.map(e=>[e.id,e]));
+  for(const row of (rows||[])){
+    const remoteTs=new Date(row.updated_at).getTime()||0;
+    const local=merged.get(row.id);
+    const localTs=local?.updatedAt||0;
+    const localDeleteTs=data.deletedRecords?.[row.id]||0;
+    if(row.deleted_at){if(remoteTs>=Math.max(localTs,localDeleteTs))merged.delete(row.id);continue}
+    const remote={...row.event_data,syncPending:false,syncedAt:Date.now()};
+    if(!local||remoteTs>=localTs)merged.set(row.id,remote);
+  }
+  data.events=[...merged.values()].sort((a,b)=>b.start-a.start);
+  persistOnly();render();setCloudBadge('connected')
+}
+async function subscribeRealtime(){
+  if(cloud.channel)await sb.removeChannel(cloud.channel);
+  if(!cloud.familyId)return;
+  cloud.channel=sb.channel(`guytime-events-${cloud.familyId}`)
+    .on('postgres_changes',{event:'*',schema:'public',table:'events',filter:`family_id=eq.${cloud.familyId}`},async()=>{await pullCloud()})
+    .subscribe(status=>{if(status==='SUBSCRIBED')setCloudBadge('connected')});
+}
+async function refreshFamilyUi(){
+  const signed=!!cloud.session;
+  $('#authCard').classList.toggle('hidden',signed);
+  $('#familyActions').classList.toggle('hidden',!signed||!!cloud.familyId);
+  $('#connectedCard').classList.toggle('hidden',!cloud.familyId);
+  $('#familyStatusTitle').textContent=cloud.familyId?'שיתוף פעיל':signed?'מחוברת לחשבון':'מצב מקומי';
+  $('#familyStatusText').textContent=cloud.familyId?'כל אירוע נשמר מקומית ומסתנכרן אוטומטית בין בני המשפחה.':signed?'צרי משפחה או הצטרפי באמצעות קוד.':'הנתונים נשמרים במכשיר הזה. אפשר להתחבר כדי לשתף ולעדכן בשני הטלפונים.';
+  $('#familyCode').textContent=cloud.familyCode||'—';
+  $('#connectedEmail').textContent=cloud.session?.user?.email||'';
+  setCloudBadge(cloud.familyId?(navigator.onLine?'connected':'pending'):'local')
+}
+async function loadMembership(){
+  if(!cloud.session){await refreshFamilyUi();return}
+  const {data:m,error}=await sb.from('family_members').select('family_id,families(invite_code)').eq('user_id',cloud.session.user.id).maybeSingle();
+  if(error)console.error('membership',error);
+  cloud.familyId=m?.family_id||null;cloud.familyCode=m?.families?.invite_code||null;
+  await refreshFamilyUi();
+  if(cloud.familyId){await pullCloud();await queueCloudSync();await subscribeRealtime()}
+}
+async function initCloud(){
+  if(!sb)return;
+  const {data:{session}}=await sb.auth.getSession();cloud.session=session;
+  await loadMembership();
+  sb.auth.onAuthStateChange(async(_event,session)=>{cloud.session=session;cloud.familyId=null;cloud.familyCode=null;await loadMembership()});
+}
+$('#sendMagicLink').onclick=async()=>{
+  const email=$('#authEmail').value.trim();if(!email)return toast('יש להזין אימייל');
+  const {error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+location.pathname,shouldCreateUser:true}});
+  if(error)return toast('לא ניתן לשלוח כרגע');
+  $('#otpWrap').classList.remove('hidden');toast('קוד כניסה נשלח לאימייל')
+};
+$('#verifyOtpBtn').onclick=async()=>{
+  const email=$('#authEmail').value.trim(),token=$('#authOtp').value.trim();
+  if(!email||token.length<6)return toast('יש להזין אימייל וקוד');
+  const {error}=await sb.auth.verifyOtp({email,token,type:'email'});
+  if(error)return toast('הקוד שגוי או שפג תוקפו');
+  toast('התחברת בהצלחה')
+};
+$('#createFamilyBtn').onclick=async()=>{const {data:code,error}=await sb.rpc('create_family',{family_name:'Guy Time'});if(error)return toast('יצירת המשפחה נכשלה');toast('המשפחה נוצרה');await loadMembership();try{await navigator.clipboard.writeText(code)}catch{}};
+$('#joinFamilyBtn').onclick=async()=>{const code=$('#joinCode').value.trim().toUpperCase();if(!code)return toast('יש להזין קוד');const {error}=await sb.rpc('join_family',{join_code:code});if(error)return toast('הקוד אינו תקין או שהחשבון כבר משויך');toast('הצטרפת למשפחה');await loadMembership()};
+$('#copyFamilyCode').onclick=async()=>{try{await navigator.clipboard.writeText(cloud.familyCode||'');toast('הקוד הועתק')}catch{toast('לא ניתן להעתיק אוטומטית')}};
+$('#signOutBtn').onclick=async()=>{if(cloud.channel)await sb.removeChannel(cloud.channel);await sb.auth.signOut();cloud={session:null,familyId:null,familyCode:null,channel:null,syncing:false,retryTimer:null};await refreshFamilyUi();toast('התנתקת')};
+window.addEventListener('online',async()=>{setCloudBadge('pending');await pullCloud();await queueCloudSync()});
+window.addEventListener('offline',()=>{if(cloud.familyId)setCloudBadge('pending')});
 initCloud();
 
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;$('#installBtn').classList.remove('hidden')});$('#installBtn').onclick=async()=>{haptic(10);if(deferredPrompt){deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null;$('#installBtn').classList.add('hidden')}else toast('ב־Safari: שיתוף ← הוספה למסך הבית')};
-if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js'));
+if('serviceWorker'in navigator)window.addEventListener('load',async()=>{const reg=await navigator.serviceWorker.register('./sw.js?v=1.9.1');reg.update();navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!sessionStorage.getItem('gt-reloaded')){sessionStorage.setItem('gt-reloaded','1');location.reload()}})});
 window.addEventListener('resize',()=>renderStats());setInterval(tick,1000);setTimeout(()=>{$('#splash').style.opacity='0';setTimeout(()=>{$('#splash').remove();$('#app').classList.remove('hidden');render()},400)},900);

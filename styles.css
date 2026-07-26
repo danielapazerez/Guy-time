@@ -88,3 +88,11 @@ button,input,select{font:inherit}.hidden{display:none!important}button{cursor:po
 /* v1.9 Supabase family sync */
 .cloud-card input,.join-row input{width:100%;border:1px solid var(--line);border-radius:14px;padding:13px;background:#fff;font-size:16px;margin-top:14px;direction:ltr;text-align:left}
 .cloud-primary{margin-top:10px}.join-row{display:grid;grid-template-columns:1fr;gap:8px}.connected{background:#eefaf2!important;color:#3d9b5b!important}.connected:before{color:#55b974!important}.chart-note{margin:-4px 0 8px;color:var(--muted);font-size:12px}.cloud-card button:not(.primary){margin-top:10px;border:0;border-radius:14px;padding:11px 14px;background:#f3f4f6;font-weight:700}.cloud-card .text-danger{background:transparent;color:#d75d6e}.family-action.hidden,.hidden{display:none!important}
+
+/* v1.9.1 reliable auth and sync */
+.otp-wrap{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.otp-wrap label{display:block;font-size:13px;font-weight:700;color:var(--muted);margin-bottom:4px}
+.otp-wrap small{display:block;color:var(--muted);font-size:12px;line-height:1.45;margin-top:8px}
+.connected-email{direction:ltr;text-align:right;font-size:12px!important;margin-top:4px!important}
+.sync-badge.pending{background:#fff6df!important;color:#a97813!important}.sync-badge.pending:before{color:#e3a92d!important}
+.sync-badge.error{background:#fff0f1!important;color:#c84f60!important}.sync-badge.error:before{color:#df6575!important}

@@ -73,16 +73,22 @@
       </article>
       <article id="authCard" class="backup-card cloud-card">
         <h3>התחברות לשיתוף</h3>
-        <p>הזיני אימייל ונשלח אלייך קישור כניסה מאובטח.</p>
+        <p>הזיני אימייל. יישלח אלייך קוד כניסה; אפשר גם להשתמש בקישור שבמייל.</p>
         <input id="authEmail" type="email" inputmode="email" placeholder="name@example.com" autocomplete="email">
-        <button id="sendMagicLink" class="primary cloud-primary" type="button">שליחת קישור כניסה</button>
+        <button id="sendMagicLink" class="primary cloud-primary" type="button">שליחת קוד כניסה</button>
+        <div id="otpWrap" class="otp-wrap hidden">
+          <label for="authOtp">קוד בן 8 ספרות מהמייל</label>
+          <input id="authOtp" type="text" inputmode="numeric" maxlength="8" placeholder="12345678" autocomplete="one-time-code">
+          <button id="verifyOtpBtn" class="primary cloud-primary" type="button">אימות והתחברות</button>
+          <small>אם קיבלת רק קישור, אפשר ללחוץ עליו. לאחר החזרה ל־Guy Time ההתחברות תזוהה אוטומטית.</small>
+        </div>
       </article>
       <section id="familyActions" class="family-actions hidden">
         <button id="createFamilyBtn" class="family-action primary-family"><span>＋</span><div><strong>יצירת משפחה</strong><small>יצירת קוד לשיתוף עם בן הזוג</small></div></button>
         <div class="join-row"><input id="joinCode" type="text" placeholder="קוד הזמנה" maxlength="10"><button id="joinFamilyBtn" class="family-action"><span>⇄</span><div><strong>הצטרפות</strong><small>למשפחה קיימת</small></div></button></div>
       </section>
       <article id="connectedCard" class="backup-card cloud-card hidden">
-        <h3>מחוברים לענן</h3>
+        <h3>מחוברים לענן</h3><p id="connectedEmail" class="connected-email"></p>
         <p>קוד המשפחה: <strong id="familyCode">—</strong></p>
         <button id="copyFamilyCode" type="button">העתקת הקוד</button>
         <button id="signOutBtn" class="text-danger" type="button">התנתקות</button>
@@ -168,6 +174,6 @@
 
   <div id="toast" class="toast"></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js"></script>
+  <script src="app.js?v=1.9.1"></script>
 </body>
 </html>
