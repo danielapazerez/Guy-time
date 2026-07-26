@@ -1,5 +1,5 @@
 const STORAGE='guyTimeDataV3';
-const APP_VERSION='1.9.1';
+const APP_VERSION='1.9.2';
 const SUPABASE_URL='https://xmegfobzciqsokjmgmib.supabase.co';
 const SUPABASE_KEY='sb_publishable_pSHG07sRyfzHOjdqDDuSDQ_fH6DNLiy';
 const sb=window.supabase?.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,detectSessionInUrl:true}});
@@ -269,8 +269,41 @@ $('#verifyOtpBtn').onclick=async()=>{
   if(error)return toast('הקוד שגוי או שפג תוקפו');
   toast('התחברת בהצלחה')
 };
-$('#createFamilyBtn').onclick=async()=>{const {data:code,error}=await sb.rpc('create_family',{family_name:'Guy Time'});if(error)return toast('יצירת המשפחה נכשלה');toast('המשפחה נוצרה');await loadMembership();try{await navigator.clipboard.writeText(code)}catch{}};
-$('#joinFamilyBtn').onclick=async()=>{const code=$('#joinCode').value.trim().toUpperCase();if(!code)return toast('יש להזין קוד');const {error}=await sb.rpc('join_family',{join_code:code});if(error)return toast('הקוד אינו תקין או שהחשבון כבר משויך');toast('הצטרפת למשפחה');await loadMembership()};
+function cloudErrorMessage(error,action='פעולת הסנכרון'){
+  console.error(`Guy Time: ${action} failed`,error);
+  const msg=String(error?.message||'').toLowerCase();
+  const code=String(error?.code||'');
+  if(msg.includes('not authenticated')||code==='PGRST301')return 'החיבור לחשבון פג. התחברי שוב ונסי מחדש';
+  if(msg.includes('already in family'))return 'החשבון כבר משויך למשפחה';
+  if(msg.includes('invalid code'))return 'קוד ההזמנה אינו תקין';
+  if(msg.includes('could not find the function')||code==='PGRST202')return 'הגדרת הסנכרון ב-Supabase עדיין לא הושלמה';
+  if(msg.includes('permission denied')||code==='42501')return 'חסרה הרשאה ב-Supabase. יש להריץ את קובץ התיקון';
+  if(msg.includes('failed to fetch')||!navigator.onLine)return 'אין כרגע חיבור לאינטרנט';
+  return `${action} נכשלה: ${error?.message||'שגיאה לא ידועה'}`;
+}
+
+$('#createFamilyBtn').onclick=async()=>{
+  if(!sb||!cloud.session)return toast('יש להתחבר לחשבון תחילה');
+  const btn=$('#createFamilyBtn');btn.disabled=true;
+  try{
+    const {data:code,error}=await sb.rpc('create_family',{family_name:'Guy Time'});
+    if(error)throw error;
+    await loadMembership();
+    if(!cloud.familyId)throw new Error('המשפחה נוצרה אך לא נמצאה לאחר הרענון');
+    toast('המשפחה נוצרה והסנכרון פעיל');
+    try{if(code)await navigator.clipboard.writeText(code)}catch{}
+  }catch(error){toast(cloudErrorMessage(error,'יצירת המשפחה'))}
+  finally{btn.disabled=false}
+};
+$('#joinFamilyBtn').onclick=async()=>{
+  const code=$('#joinCode').value.trim().toUpperCase();if(!code)return toast('יש להזין קוד');
+  const btn=$('#joinFamilyBtn');btn.disabled=true;
+  try{
+    const {error}=await sb.rpc('join_family',{join_code:code});if(error)throw error;
+    await loadMembership();toast('הצטרפת למשפחה והסנכרון פעיל');
+  }catch(error){toast(cloudErrorMessage(error,'ההצטרפות למשפחה'))}
+  finally{btn.disabled=false}
+};
 $('#copyFamilyCode').onclick=async()=>{try{await navigator.clipboard.writeText(cloud.familyCode||'');toast('הקוד הועתק')}catch{toast('לא ניתן להעתיק אוטומטית')}};
 $('#signOutBtn').onclick=async()=>{if(cloud.channel)await sb.removeChannel(cloud.channel);await sb.auth.signOut();cloud={session:null,familyId:null,familyCode:null,channel:null,syncing:false,retryTimer:null};await refreshFamilyUi();toast('התנתקת')};
 window.addEventListener('online',async()=>{setCloudBadge('pending');await pullCloud();await queueCloudSync()});
